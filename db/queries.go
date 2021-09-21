@@ -4,7 +4,8 @@ const currentCPUHoursForUserQuery = `
 	SELECT 
 		t.id,
 		t.total,
-		t.effective_range,
+		lower(t.effective_range) effective_start,
+		upper(t.effective_range) effective_end,
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
@@ -16,7 +17,8 @@ const allCPUHoursForUserQuery = `
 	SELECT
 		t.id,
 		t.total,
-		t.effective_range,
+		lower(t.effective_range) effective_start,
+		upper(t.effective_range) effective_end,
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
@@ -29,7 +31,8 @@ const currentCPUHoursQuery = `
 		t.total,
 		t.user_id,
 		u.username,
-		t.effective_range,
+		lower(t.effective_range) effective_start,
+		upper(t.effective_range) effective_end,
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
@@ -42,7 +45,8 @@ const allCPUHoursQuery = `
 		t.total,
 		t.user_id,
 		t.username,
-		t.effective_range,
+		lower(t.effective_range) effective_start,
+		upper(t.effective_range) effective_end,
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id;
