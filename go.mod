@@ -8,6 +8,8 @@ require (
 	github.com/labstack/echo/v4 v4.6.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
+	github.com/streadway/amqp v1.0.0
+	gopkg.in/cyverse-de/messaging.v6 v6.0.0
 )
 
 require (
@@ -25,7 +27,6 @@ require (
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
-	github.com/streadway/amqp v1.0.0 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
@@ -33,7 +34,6 @@ require (
 	golang.org/x/net v0.0.0-20210913180222-943fd674d43e // indirect
 	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
 	golang.org/x/text v0.3.7 // indirect
-	gopkg.in/cyverse-de/messaging.v6 v6.0.0 // indirect
 	gopkg.in/cyverse-de/model.v4 v4.0.0-20191010001558-736b5a572acd // indirect
 	gopkg.in/ini.v1 v1.63.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
