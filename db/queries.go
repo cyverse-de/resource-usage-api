@@ -10,7 +10,8 @@ const currentCPUHoursForUserQuery = `
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
 	WHERE u.username = %1
-	AND t.effective_range @> now();
+	AND t.effective_range @> now()
+	LIMIT 1;
 `
 
 const allCPUHoursForUserQuery = `
