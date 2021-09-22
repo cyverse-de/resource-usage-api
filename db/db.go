@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -28,4 +29,82 @@ type CPUUsageEvent struct {
 	Value         int64  `db:"value" json:"value"`
 	CreatedBy     string `db:"created_by" json:"created_by"`
 	LastModified  string `db:"last_modified" json:"last_modified"`
+}
+
+func (d *Database) CurrentCPUHoursForUser(context context.Context, username string) (*CPUHours, error) {
+	var cpuHours CPUHours
+	err := d.db.QueryRowxContext(context, currentCPUHoursForUserQuery, username).Scan(&cpuHours)
+	return &cpuHours, err
+}
+
+func (d *Database) AllCPUHoursForUser(context context.Context, username string) ([]CPUHours, error) {
+	var cpuHours []CPUHours
+
+	rows, err := d.db.QueryxContext(context, allCPUHoursForUserQuery, username)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var h CPUHours
+		err = rows.StructScan(&h)
+		if err != nil {
+			return nil, err
+		}
+		cpuHours = append(cpuHours, h)
+	}
+
+	if err = rows.Err(); err != nil {
+		return cpuHours, err
+	}
+
+	return cpuHours, nil
+}
+
+func (d *Database) AdminAllCurrentCPUHours(context context.Context) ([]CPUHours, error) {
+	var cpuHours []CPUHours
+
+	rows, err := d.db.QueryxContext(context, currentCPUHoursQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var h CPUHours
+		err = rows.StructScan(&h)
+		if err != nil {
+			return nil, err
+		}
+		cpuHours = append(cpuHours, h)
+	}
+
+	if err = rows.Err(); err != nil {
+		return cpuHours, err
+	}
+
+	return cpuHours, nil
+}
+
+func (d *Database) AdminAllCPUHours(context context.Context) ([]CPUHours, error) {
+	var cpuHours []CPUHours
+
+	rows, err := d.db.QueryxContext(context, allCPUHoursQuery)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var h CPUHours
+		err = rows.StructScan(&h)
+		if err != nil {
+			return nil, err
+		}
+		cpuHours = append(cpuHours, h)
+	}
+
+	if err = rows.Err(); err != nil {
+		return cpuHours, err
+	}
+
+	return cpuHours, nil
 }
