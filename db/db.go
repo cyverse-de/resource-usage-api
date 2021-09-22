@@ -7,10 +7,6 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type Database struct {
-	db *sqlx.DB
-}
-
 type CPUHours struct {
 	ID             string    `db:"id" json:"id"`
 	UserID         string    `db:"user_id" json:"user_id"`
@@ -29,6 +25,14 @@ type CPUUsageEvent struct {
 	Value         int64  `db:"value" json:"value"`
 	CreatedBy     string `db:"created_by" json:"created_by"`
 	LastModified  string `db:"last_modified" json:"last_modified"`
+}
+
+type Database struct {
+	db *sqlx.DB
+}
+
+func New(db *sqlx.DB) *Database {
+	return &Database{db: db}
 }
 
 func (d *Database) CurrentCPUHoursForUser(context context.Context, username string) (*CPUHours, error) {
