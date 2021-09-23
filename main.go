@@ -5,15 +5,75 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/cyverse-de/configurate"
 	"github.com/cyverse-de/resource-usage-api/amqp"
+	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
+	"golang.org/x/net/context"
 )
 
 var log = logging.Log
+
+func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
+	dedb := db.New(dbClient)
+
+	return func(userID, externalID, state string) {
+		event := db.CPUUsageEvent{
+			CreatedBy: userID,
+		}
+
+		// Set up a context with a deadline of 2 minutes. This should prevent a backlog of go routines
+		// from building up.
+		ctx, cancelFn := context.WithDeadline(context.Background(), time.Now().Add(time.Minute*2))
+		defer cancelFn()
+
+		// Look up the analysis ID from the externalID.
+		analysisID, err := dedb.GetAnalysisIDByExternalID(ctx, externalID)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		// Get the start date of the analysis.
+		analysis, err := dedb.Analysis(ctx, userID, analysisID)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		if !analysis.StartDate.Valid {
+			log.Errorf("analysis %s: start date was null", analysis.ID)
+		}
+		startDate := analysis.StartDate.Time
+
+		// Get the current date. Can't really depend on the sent_on field.
+		nowTime := time.Now()
+
+		// Calculate the number of hours betwen the start date and the current date.
+		hours := nowTime.Sub(startDate).Hours()
+
+		// Get the number of millicores requested for the analysis.
+		// TODO: figure out the right way to handle default values. Default to 1.0 for now.
+		millicores := 1000.0
+
+		// Multiply the number of hours by the number of millicores.
+		// Divide the result by 1000 to get the number of CPU hours. 1000 millicores = 1 CPU core.
+		cpuHours := (millicores * hours) / 1000.0
+
+		// Add the event to the database.
+		event.EffectiveDate = nowTime
+		event.RecordDate = nowTime
+		event.Value = int64(cpuHours)
+
+		if err = dedb.AddCPUUsageEvent(ctx, &event); err != nil {
+			log.Error(err)
+		}
+	}
+}
 
 func main() {
 	var (
@@ -70,9 +130,7 @@ func main() {
 		Queue:        *queue,
 	}
 
-	amqpClient, err := amqp.New(&amqpConfig, func(externalID, state string) {
-		log.Infof("external id: %s, state: %s", externalID, state)
-	})
+	amqpClient, err := amqp.New(&amqpConfig, getHandler(db))
 	if err != nil {
 		log.Fatal(err)
 	}

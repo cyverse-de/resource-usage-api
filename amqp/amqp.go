@@ -19,7 +19,7 @@ type Configuration struct {
 	PrefetchCount int
 }
 
-type HandlerFn func(externalID, state string)
+type HandlerFn func(userID, externalID, state string)
 
 type AMQP struct {
 	client  *messaging.Client
@@ -64,7 +64,7 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 		log.Error("invocation/external ID was unset, dropping message")
 	}
 
-	a.handler(update.Job.InvocationID, string(update.State))
+	a.handler(update.Job.UserID, update.Job.InvocationID, string(update.State))
 }
 
 func (a *AMQP) Listen() {
