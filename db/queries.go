@@ -79,9 +79,57 @@ const allCPUHoursQuery = `
 	JOIN users u ON t.user_id = u.id;
 `
 
-const insertCPUHourEvent = `
+const insertCPUHourEventStmt = `
 	INSERT INTO cpu_usage_events
 		(record_date, effective_date, event_type_id, value, created_by) 
 	VALUES 
 		(%1, %2, (SELECT id FROM cpu_usage_event_types WHERE name = %3), %4, %5);
+`
+
+const unprocessedEventsQuery = `
+	SELECT c.id,
+		   c.record_date,
+		   c.effective_date,
+		   e.name event_type,
+		   c.value,
+		   u.username created_by,
+		   c.last_modified,
+		   c.claimed,
+		   c.claimed_by,
+		   c.claimed_on,
+		   c.claim_expires_on,
+		   c.processed,
+		   c.processing,
+		   c.processed_on,
+		   c.max_processing_attempts,
+		   c.attempts
+	  FROM cpu_usage_events c
+	  JOIN users u ON c.created_by = u.id
+	  JOIN cpu_usage_event_types e ON c.event_type_id = e.id
+	  WHERE NOT c.claimed
+	  AND NOT c.processed
+	  AND NOT c.processing
+	  AND c.attempts < c.max_processing_attempts
+	  AND CURRENT_TIMESTAMP < c.claim_expires_on;
+`
+
+const claimedByStmt = `
+	UPDATE ONLY cpu_usage_events
+		SET claimed = true,
+			claimed_by = %2
+		WHERE id = %1;
+`
+
+const processingStmt = `
+	UPDATE ONLY cpu_usage_events
+		SET processing = true,
+			attempts = attempts + 1
+		WHERE id = %1;
+`
+
+const finishedProcessingStmt = `
+	UPDATE ONLY cpu_usage_events
+		SET processing = false,
+			processed = true
+		WHERE id = %1;
 `
