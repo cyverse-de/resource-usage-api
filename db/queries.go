@@ -110,7 +110,7 @@ const unprocessedEventsQuery = `
 	  AND NOT c.processed
 	  AND NOT c.processing
 	  AND c.attempts < c.max_processing_attempts
-	  AND CURRENT_TIMESTAMP < c.claim_expires_on;
+	  AND CURRENT_TIMESTAMP >= COALESCE(c.claim_expires_on, to_timestamp(0));
 `
 
 const claimedByStmt = `
