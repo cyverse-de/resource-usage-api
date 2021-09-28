@@ -139,6 +139,7 @@ const registerWorkerStmt = `
 		(name, activation_expires_on)
 	VALUES
 		(%1, %2);
+	RETURNING id;
 `
 
 const unregisterWorkerStmt = `
@@ -168,7 +169,7 @@ const purgeExpiredWorkersStmt = `
 const gettingWorkStmt = `
 	UPDATE ONLY cpu_usage_workers
 		SET getting_work = true,
-			getting_work_on = %2
+			getting_work_expires_on = %2
 		WHERE id = %1;
 `
 

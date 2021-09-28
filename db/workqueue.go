@@ -80,36 +80,88 @@ func (d *Database) FinishedProcessingEvent(context context.Context, id string) e
 }
 
 // RegisterWorker adds a new worker to the database. Returns the worker's assigned ID.
-func (d *Database) RegisterWorker(context context.Context, workerName string) (string, error) {
-	return "", nil
+func (d *Database) RegisterWorker(context context.Context, workerName string, expiration time.Time) (string, error) {
+	var (
+		newID string
+		err   error
+	)
+
+	if err = d.db.GetContext(
+		context,
+		&newID,
+		registerWorkerStmt,
+		workerName,
+		expiration,
+	); err != nil {
+		return "", err
+	}
+
+	return newID, nil
 }
 
 // UnregisterWorker removes a worker from the database.
-func (d *Database) UnregisterWorker(context context.Context, workerName string) error {
-	return nil
+func (d *Database) UnregisterWorker(context context.Context, workerID string) error {
+	_, err := d.db.ExecContext(
+		context,
+		unregisterWorkerStmt,
+		workerID,
+	)
+	return err
 }
 
 // RefreshWorkerRegistration updates the workers activation expiration date.
 func (d *Database) RefreshWorkerRegistration(context context.Context, workerID string) (*time.Time, error) {
-	return nil, nil
+	newTime := time.Now().Add(48 * time.Hour)
+	_, err := d.db.ExecContext(
+		context,
+		refreshWorkerStmt,
+		workerID,
+		newTime,
+	)
+	return &newTime, err
 }
 
-// PurgeExpiredWorkers clears out all workers whose registration has expired.
-func (d *Database) PurgeExpiredWorkers(context context.Context) error {
-	return nil
+// PurgeExpiredWorkers clears out all workers whose registration has expired. Returns
+// the number of rows affected.
+func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
+	result, err := d.db.ExecContext(
+		context,
+		purgeExpiredWorkersStmt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 // GettingWork records that the worker is looking up work.
-func (d *Database) GettingWork(context context.Context, id string, expiration time.Time) error {
-	return nil
+func (d *Database) GettingWork(context context.Context, workerID string, expiration time.Time) error {
+	_, err := d.db.ExecContext(
+		context,
+		gettingWorkStmt,
+		workerID,
+		expiration,
+	)
+	return err
 }
 
 // DoneGettingWork records that the worker is not looking up work.
-func (d *Database) DoneGettingWork(context context.Context, id string) error {
-	return nil
+func (d *Database) DoneGettingWork(context context.Context, workerID string) error {
+	_, err := d.db.ExecContext(
+		context,
+		notGettingWorkStmt,
+		workerID,
+	)
+	return err
 }
 
 // SetWorking records whether the worker is working on something.
-func (d *Database) SetWorking(context context.Context, id string, working bool) error {
-	return nil
+func (d *Database) SetWorking(context context.Context, workerID string, working bool) error {
+	_, err := d.db.ExecContext(
+		context,
+		setWorkingStmt,
+		workerID,
+		working,
+	)
+	return err
 }
