@@ -166,6 +166,17 @@ const purgeExpiredWorkersStmt = `
 		AND CURRENT_TIMESTAMP >= COALESCE(activation_expires_on, to_timestamp(0));
 `
 
+// Only purge work seekers if the expiration date on their search has expired.
+const purgeExpiredWorkSeekersStmt = `
+	UPDATE ONLY cpu_usage_workers
+		SET getting_work = false,
+			working = false
+		WHERE activated,
+		AND getting_work,
+		AND NOT working
+		WHERE CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
+`
+
 const gettingWorkStmt = `
 	UPDATE ONLY cpu_usage_workers
 		SET getting_work = true,

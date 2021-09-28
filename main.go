@@ -11,6 +11,7 @@ import (
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
+	"github.com/go-co-op/gocron"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
@@ -79,7 +80,7 @@ func main() {
 	var (
 		err    error
 		config *viper.Viper
-		db     *sqlx.DB
+		dbconn *sqlx.DB
 
 		configPath = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
 		listenPort = flag.Int("port", 60000, "The port the service listens on for requests")
@@ -130,16 +131,48 @@ func main() {
 		Queue:        *queue,
 	}
 
-	amqpClient, err := amqp.New(&amqpConfig, getHandler(db))
+	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
 	if err != nil {
 		log.Fatal(err)
 	}
 	go amqpClient.Listen()
 	defer amqpClient.Close()
 
-	db = sqlx.MustConnect("postgres", dbURI)
+	dbconn = sqlx.MustConnect("postgres", dbURI)
 
-	app := NewApp(db)
+	sched := gocron.NewScheduler(time.Local)
+
+	// Clean up the expired workers every hour or so.
+	sched.Every(1).Hour().Do(func() {
+		var (
+			numPurged int64
+			err       error
+			d         *db.Database
+		)
+		d = db.New(dbconn)
+		if numPurged, err = d.PurgeExpiredWorkers(context.Background()); err != nil {
+			log.Error(err)
+			return
+		}
+		log.Infof("purged %d workers from the database", numPurged)
+	})
+
+	// Clean up the expired work seekers every hour or so.
+	sched.Every(1).Hour().Do(func() {
+		var (
+			numPurged int64
+			err       error
+			d         *db.Database
+		)
+		d = db.New(dbconn)
+		if numPurged, err = d.PurgeExpiredWorkSeekers(context.Background()); err != nil {
+			log.Error(err)
+			return
+		}
+		log.Infof("purged %d workers from the database", numPurged)
+	})
+
+	app := NewApp(dbconn)
 	log.Infof("listening on port %d", *listenPort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.router))
 }

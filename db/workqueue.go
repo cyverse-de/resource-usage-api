@@ -134,6 +134,19 @@ func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
 	return result.RowsAffected()
 }
 
+// PurgeExpiredWorkSeekers clears out all workers that have been looking for work from
+// the queue too long. Returns the number of rows affected.
+func (d *Database) PurgeExpiredWorkSeekers(context context.Context) (int64, error) {
+	result, err := d.db.ExecContext(
+		context,
+		purgeExpiredWorkSeekersStmt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 // GettingWork records that the worker is looking up work.
 func (d *Database) GettingWork(context context.Context, workerID string, expiration time.Time) error {
 	_, err := d.db.ExecContext(
