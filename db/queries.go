@@ -133,3 +133,53 @@ const finishedProcessingStmt = `
 			processed = true
 		WHERE id = %1;
 `
+
+const registerWorkerStmt = `
+	INSERT INTO ONLY cpu_usage_workers
+		(name, activation_expires_on)
+	VALUES
+		(%1, %2);
+`
+
+const unregisterWorkerStmt = `
+	UPDATE ONLY cpu_usage_workers
+		SET activated = false,
+			getting_work = false
+		WHERE id = %1;
+`
+
+const refreshWorkerStmt = `
+	UPDATE ONLY cpu_usage_workers
+		SET activation_expires_on = %2
+		WHERE id = %1;
+`
+
+// Only purge workers (set their activation flag to false) if they're not getting work,
+// they're not actively working on something, and the activation timestamp has passed.
+const purgeExpiredWorkersStmt = `
+	UPDATE ONLY cpu_usage_workers
+		SET activated = false
+		WHERE activated
+		AND NOT getting_work
+		AND NOT working
+		AND CURRENT_TIMESTAMP >= COALESCE(activation_expires_on, to_timestamp(0));
+`
+
+const gettingWorkStmt = `
+	UPDATE ONLY cpu_usage_workers
+		SET getting_work = true,
+			getting_work_on = %2
+		WHERE id = %1;
+`
+
+const notGettingWorkStmt = `
+	UPDATE ONLY cpu_usage_workers
+		SET getting_work = false
+		WHERE id = %1;
+`
+
+const setWorkingStmt = `
+	UPDATE ONLY cpu_usage_workers
+		SET working = %2
+		WHERE id = %1;
+`
