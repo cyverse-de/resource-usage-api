@@ -2,9 +2,9 @@ package db
 
 const analysisIDByExternalIDQuery = `
 	SELECT j.id
-	  FROM jobs j
-	  JOIN job_steps s ON s.job_id = j.id
-	 WHERE s.external_id = $1
+	FROM jobs j
+	JOIN job_steps s ON s.job_id = j.id
+	WHERE s.external_id = %1
 `
 
 const analysisQuery = `
@@ -87,51 +87,52 @@ const insertCPUHourEventStmt = `
 `
 
 const unprocessedEventsQuery = `
-	SELECT c.id,
-		   c.record_date,
-		   c.effective_date,
-		   e.name event_type,
-		   c.value,
-		   u.username created_by,
-		   c.last_modified,
-		   c.claimed,
-		   c.claimed_by,
-		   c.claimed_on,
-		   c.claim_expires_on,
-		   c.processed,
-		   c.processing,
-		   c.processed_on,
-		   c.max_processing_attempts,
-		   c.attempts
-	  FROM cpu_usage_events c
-	  JOIN users u ON c.created_by = u.id
-	  JOIN cpu_usage_event_types e ON c.event_type_id = e.id
-	  WHERE NOT c.claimed
-	  AND NOT c.processed
-	  AND NOT c.processing
-	  AND c.attempts < c.max_processing_attempts
-	  AND CURRENT_TIMESTAMP >= COALESCE(c.claim_expires_on, to_timestamp(0));
+	SELECT 
+		c.id,
+		c.record_date,
+		c.effective_date,
+		e.name event_type,
+		c.value,
+		u.username created_by,
+		c.last_modified,
+		c.claimed,
+		c.claimed_by,
+		c.claimed_on,
+		c.claim_expires_on,
+		c.processed,
+		c.processing,
+		c.processed_on,
+		c.max_processing_attempts,
+		c.attempts
+	FROM cpu_usage_events c
+	JOIN users u ON c.created_by = u.id
+	JOIN cpu_usage_event_types e ON c.event_type_id = e.id
+	WHERE NOT c.claimed
+	AND NOT c.processed
+	AND NOT c.processing
+	AND c.attempts < c.max_processing_attempts
+	AND CURRENT_TIMESTAMP >= COALESCE(c.claim_expires_on, to_timestamp(0));
 `
 
 const claimedByStmt = `
 	UPDATE ONLY cpu_usage_events
-		SET claimed = true,
-			claimed_by = %2
-		WHERE id = %1;
+	SET claimed = true,
+		claimed_by = %2
+	WHERE id = %1;
 `
 
 const processingStmt = `
 	UPDATE ONLY cpu_usage_events
-		SET processing = true,
-			attempts = attempts + 1
-		WHERE id = %1;
+	SET processing = true,
+		attempts = attempts + 1
+	WHERE id = %1;
 `
 
 const finishedProcessingStmt = `
 	UPDATE ONLY cpu_usage_events
-		SET processing = false,
-			processed = true
-		WHERE id = %1;
+	SET processing = false,
+		processed = true
+	WHERE id = %1;
 `
 
 const registerWorkerStmt = `
@@ -144,77 +145,77 @@ const registerWorkerStmt = `
 
 const unregisterWorkerStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET activated = false,
-			getting_work = false
-		WHERE id = %1;
+	SET activated = false,
+		getting_work = false
+	WHERE id = %1;
 `
 
 const refreshWorkerStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET activation_expires_on = %2
-		WHERE id = %1;
+	SET activation_expires_on = %2
+	WHERE id = %1;
 `
 
 // Only purge workers (set their activation flag to false) if they're not getting work,
 // they're not actively working on something, and the activation timestamp has passed.
 const purgeExpiredWorkersStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET activated = false,
-			activation_expires_on = NULL
-		WHERE activated
-		AND NOT getting_work
-		AND NOT working
-		AND CURRENT_TIMESTAMP >= COALESCE(activation_expires_on, to_timestamp(0));
+	SET activated = false,
+		activation_expires_on = NULL
+	WHERE activated
+	AND NOT getting_work
+	AND NOT working
+	AND CURRENT_TIMESTAMP >= COALESCE(activation_expires_on, to_timestamp(0));
 `
 
 // Only purge work seekers if the expiration date on their search has expired.
 const purgeExpiredWorkSeekersStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET getting_work = false,
-			getting_work_on = NULL,
-			getting_work_expires_on = NULL
-		WHERE activated,
-		AND getting_work,
-		AND NOT working
-		WHERE CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
+	SET getting_work = false,
+		getting_work_on = NULL,
+		getting_work_expires_on = NULL
+	WHERE activated,
+	AND getting_work,
+	AND NOT working
+	WHERE CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
 `
 
 const purgeExpiredWorkClaimsStmt = `
 	UPDATE ONLY cpu_usage_events
-		SET claimed = false,
-			claimed_by = NULL,
-			claimed_on = NULL
-		WHERE claimed = true
-		AND processing = false
-		AND processed = false
-		AND CURRENT_TIMESTAMP >= COALESCE(claim_expires_on, to_timestamp(0));
+	SET claimed = false,
+		claimed_by = NULL,
+		claimed_on = NULL
+	WHERE claimed = true
+	AND processing = false
+	AND processed = false
+	AND CURRENT_TIMESTAMP >= COALESCE(claim_expires_on, to_timestamp(0));
 `
 
 const resetWorkClaimForInactiveWorkersStmt = `
 	UPDATE ONLY cpu_usage_events
-		SET claimed = false,
-			claimed_by = NULL,
-			claimed_on = NULL
-		WHERE claimed = true
-		AND claimed_by = ( SELECT id FROM cpu_usage_workers WHERE NOT active );
+	SET claimed = false,
+		claimed_by = NULL,
+		claimed_on = NULL
+	WHERE claimed = true
+	AND claimed_by = ( SELECT id FROM cpu_usage_workers WHERE NOT active );
 `
 
 const gettingWorkStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET getting_work = true,
-			getting_work_expires_on = %2
-		WHERE id = %1;
+	SET getting_work = true,
+		getting_work_expires_on = %2
+	WHERE id = %1;
 `
 
 const notGettingWorkStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET getting_work = false,
-			getting_work_expires_on = NULL
-		WHERE id = %1;
+	SET getting_work = false,
+		getting_work_expires_on = NULL
+	WHERE id = %1;
 `
 
 const setWorkingStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET working = %2
-		WHERE id = %1;
+	SET working = %2
+	WHERE id = %1;
 `
