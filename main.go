@@ -145,31 +145,13 @@ func main() {
 	// Clean up the expired workers every hour or so.
 	sched.Every(1).Hour().Do(func() {
 		var (
-			numPurged int64
-			err       error
-			d         *db.Database
+			err error
+			d   *db.Database
 		)
 		d = db.New(dbconn)
-		if numPurged, err = d.PurgeExpiredWorkers(context.Background()); err != nil {
+		if err = d.EnforceExpirations(context.Background()); err != nil {
 			log.Error(err)
-			return
 		}
-		log.Infof("purged %d workers from the database", numPurged)
-	})
-
-	// Clean up the expired work seekers every hour or so.
-	sched.Every(1).Hour().Do(func() {
-		var (
-			numPurged int64
-			err       error
-			d         *db.Database
-		)
-		d = db.New(dbconn)
-		if numPurged, err = d.PurgeExpiredWorkSeekers(context.Background()); err != nil {
-			log.Error(err)
-			return
-		}
-		log.Infof("purged %d workers from the database", numPurged)
 	})
 
 	app := NewApp(dbconn)

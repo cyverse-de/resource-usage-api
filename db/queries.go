@@ -177,6 +177,15 @@ const purgeExpiredWorkSeekersStmt = `
 		WHERE CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
 `
 
+const purgeExpiredWorkClaims = `
+	UPDATE ONLY cpu_usage_events
+		SET claimed = false
+		WHERE claimed = true
+		AND processing = false
+		AND processed = false
+		AND CURRENT_TIMESTAMP >= COALESCE(claim_expires_on, to_timestamp(0));
+`
+
 const gettingWorkStmt = `
 	UPDATE ONLY cpu_usage_workers
 		SET getting_work = true,
