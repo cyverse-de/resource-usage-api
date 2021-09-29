@@ -159,7 +159,8 @@ const refreshWorkerStmt = `
 // they're not actively working on something, and the activation timestamp has passed.
 const purgeExpiredWorkersStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET activated = false
+		SET activated = false,
+			activation_expires_on = NULL
 		WHERE activated
 		AND NOT getting_work
 		AND NOT working
@@ -170,20 +171,32 @@ const purgeExpiredWorkersStmt = `
 const purgeExpiredWorkSeekersStmt = `
 	UPDATE ONLY cpu_usage_workers
 		SET getting_work = false,
-			working = false
+			getting_work_on = NULL,
+			getting_work_expires_on = NULL
 		WHERE activated,
 		AND getting_work,
 		AND NOT working
 		WHERE CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
 `
 
-const purgeExpiredWorkClaims = `
+const purgeExpiredWorkClaimsStmt = `
 	UPDATE ONLY cpu_usage_events
-		SET claimed = false
+		SET claimed = false,
+			claimed_by = NULL,
+			claimed_on = NULL
 		WHERE claimed = true
 		AND processing = false
 		AND processed = false
 		AND CURRENT_TIMESTAMP >= COALESCE(claim_expires_on, to_timestamp(0));
+`
+
+const resetWorkClaimForInactiveWorkersStmt = `
+	UPDATE ONLY cpu_usage_events
+		SET claimed = false,
+			claimed_by = NULL,
+			claimed_on = NULL
+		WHERE claimed = true
+		AND claimed_by = ( SELECT id FROM cpu_usage_workers WHERE NOT active );
 `
 
 const gettingWorkStmt = `
@@ -195,7 +208,8 @@ const gettingWorkStmt = `
 
 const notGettingWorkStmt = `
 	UPDATE ONLY cpu_usage_workers
-		SET getting_work = false
+		SET getting_work = false,
+			getting_work_expires_on = NULL
 		WHERE id = %1;
 `
 

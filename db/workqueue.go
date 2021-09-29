@@ -157,7 +157,20 @@ func (d *Database) purgeExpiredWorkSeekers(context context.Context, tx *sql.Tx) 
 func (d *Database) purgeExpiredWorkClaims(context context.Context, tx *sql.Tx) (int64, error) {
 	result, err := tx.ExecContext(
 		context,
-		purgeExpiredWorkClaims,
+		purgeExpiredWorkClaimsStmt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+// resetWorkClaimsForInactiveWorkers will mark an event as unclaimed if the worker that
+// claimed it is inactive.
+func (d *Database) resetWorkClaimsForInactiveWorkers(context context.Context, tx *sql.Tx) (int64, error) {
+	result, err := tx.ExecContext(
+		context,
+		resetWorkClaimForInactiveWorkersStmt,
 	)
 	if err != nil {
 		return 0, err
@@ -184,6 +197,12 @@ func (d *Database) EnforceExpirations(context context.Context) error {
 		return err
 	}
 	log.Infof("%d expired workers were cleaned up", expiredW)
+
+	inactiveClaims, err := d.resetWorkClaimsForInactiveWorkers(context, tx)
+	if err != nil {
+		return err
+	}
+	log.Infof("%d claims assigned to inactive workers were cleaned up", inactiveClaims)
 
 	expiredWC, err := d.purgeExpiredWorkClaims(context, tx)
 	if err != nil {
