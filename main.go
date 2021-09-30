@@ -140,21 +140,17 @@ func main() {
 
 	dbconn = sqlx.MustConnect("postgres", dbURI)
 
+	app := NewApp(dbconn)
+
 	sched := gocron.NewScheduler(time.Local)
 
 	// Clean up the expired workers every hour or so.
 	sched.Every(1).Hour().Do(func() {
-		var (
-			err error
-			d   *db.Database
-		)
-		d = db.New(dbconn)
-		if err = d.EnforceExpirations(context.Background()); err != nil {
+		if err := app.EnforceExpirations(context.Background()); err != nil {
 			log.Error(err)
 		}
 	})
 
-	app := NewApp(dbconn)
 	log.Infof("listening on port %d", *listenPort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.router))
 }

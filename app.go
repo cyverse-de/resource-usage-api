@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strings"
@@ -13,7 +14,7 @@ import (
 
 // App encapsulates the application logic.
 type App struct {
-	db         *sqlx.DB
+	database   *sqlx.DB
 	router     *echo.Echo
 	userSuffix string
 }
@@ -44,7 +45,7 @@ func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
 	}
 	user = a.FixUsername(user)
 
-	d := db.New(a.db)
+	d := db.New(a.database)
 	results, err := d.CurrentCPUHoursForUser(context, user)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -63,7 +64,7 @@ func (a *App) AllCPUHoursHandler(c echo.Context) error {
 	}
 	user = a.FixUsername(user)
 
-	d := db.New(a.db)
+	d := db.New(a.database)
 	results, err := d.AllCPUHoursForUser(context, user)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -80,7 +81,7 @@ func (a *App) AllCPUHoursHandler(c echo.Context) error {
 func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
 	context := c.Request().Context()
 
-	d := db.New(a.db)
+	d := db.New(a.database)
 	results, err := d.AdminAllCurrentCPUHours(context)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -93,7 +94,7 @@ func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
 func (a *App) AdminAllCPUHoursTotalsHandler(c echo.Context) error {
 	context := c.Request().Context()
 
-	d := db.New(a.db)
+	d := db.New(a.database)
 	results, err := d.AdminAllCPUHours(context)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
@@ -104,8 +105,8 @@ func (a *App) AdminAllCPUHoursTotalsHandler(c echo.Context) error {
 
 func NewApp(db *sqlx.DB) *App {
 	app := &App{
-		db:     db,
-		router: echo.New(),
+		database: db,
+		router:   echo.New(),
 	}
 
 	app.router.HTTPErrorHandler = logging.HTTPErrorHandler
@@ -121,4 +122,61 @@ func NewApp(db *sqlx.DB) *App {
 	cpuadmin.GET("/totals/all", app.AdminAllCPUHoursTotalsHandler)
 
 	return app
+}
+
+func (a *App) CPUHoursAdd(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	// Open a transaction.
+	// Get the current total.
+	// Add the new value from the event to the total.
+	// Set the new total.
+	// Mark the work item as processed.
+	// Commit the transaction
+	return nil
+}
+
+func (a *App) CPUHoursSubtract(context context.Context, workItem *db.CPUUsageEvent) error {
+	// Open a transaction.
+	// Get the current total.
+	// Subtract the new value in the work item from the total.
+	// Set the new total
+	// Mark the work item as processed.
+	// Commit the transaction.
+	return nil
+}
+
+// EnforceExpirations will clean up the database of expired workers, work claims,
+// and work seekers.
+func (a *App) EnforceExpirations(context context.Context) error {
+	tx, err := a.database.Beginx()
+	if err != nil {
+		return err
+	}
+
+	d := db.New(tx)
+
+	expiredWS, err := d.PurgeExpiredWorkSeekers(context)
+	if err != nil {
+		return err
+	}
+	log.Infof("%d expired work seekers were cleaned up", expiredWS)
+
+	expiredW, err := d.PurgeExpiredWorkers(context)
+	if err != nil {
+		return err
+	}
+	log.Infof("%d expired workers were cleaned up", expiredW)
+
+	inactiveClaims, err := d.ResetWorkClaimsForInactiveWorkers(context)
+	if err != nil {
+		return err
+	}
+	log.Infof("%d claims assigned to inactive workers were cleaned up", inactiveClaims)
+
+	expiredWC, err := d.PurgeExpiredWorkClaims(context)
+	if err != nil {
+		return err
+	}
+	log.Infof("%d expired work claims were cleaned up", expiredWC)
+
+	return tx.Commit()
 }

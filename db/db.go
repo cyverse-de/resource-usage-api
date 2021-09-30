@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -39,11 +40,17 @@ type CPUUsageWorkItem struct {
 	Attempts              int
 }
 
-type Database struct {
-	db *sqlx.DB
+type DatabaseAccessor interface {
+	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
+	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
+	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
 }
 
-func New(db *sqlx.DB) *Database {
+type Database struct {
+	db DatabaseAccessor
+}
+
+func New(db DatabaseAccessor) *Database {
 	return &Database{db: db}
 }
 

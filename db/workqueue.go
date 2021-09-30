@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/cyverse-de/resource-usage-api/logging"
@@ -90,18 +89,8 @@ func (d *Database) RegisterWorker(context context.Context, workerName string, ex
 		newID string
 		err   error
 	)
-
-	if err = d.db.GetContext(
-		context,
-		&newID,
-		registerWorkerStmt,
-		workerName,
-		expiration,
-	); err != nil {
-		return "", err
-	}
-
-	return newID, nil
+	err = d.db.QueryRowxContext(context, registerWorkerStmt, workerName, expiration).Scan(&newID)
+	return newID, err
 }
 
 // UnregisterWorker removes a worker from the database.
@@ -128,8 +117,8 @@ func (d *Database) RefreshWorkerRegistration(context context.Context, workerID s
 
 // PurgeExpiredWorkers clears out all workers whose registration has expired. Returns
 // the number of rows affected.
-func (d *Database) purgeExpiredWorkers(context context.Context, tx *sql.Tx) (int64, error) {
-	result, err := tx.ExecContext(
+func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
+	result, err := d.db.ExecContext(
 		context,
 		purgeExpiredWorkersStmt,
 	)
@@ -141,8 +130,8 @@ func (d *Database) purgeExpiredWorkers(context context.Context, tx *sql.Tx) (int
 
 // PurgeExpiredWorkSeekers clears out all workers that have been looking for work from
 // the queue too long. Returns the number of rows affected.
-func (d *Database) purgeExpiredWorkSeekers(context context.Context, tx *sql.Tx) (int64, error) {
-	result, err := tx.ExecContext(
+func (d *Database) PurgeExpiredWorkSeekers(context context.Context) (int64, error) {
+	result, err := d.db.ExecContext(
 		context,
 		purgeExpiredWorkSeekersStmt,
 	)
@@ -154,8 +143,8 @@ func (d *Database) purgeExpiredWorkSeekers(context context.Context, tx *sql.Tx) 
 
 // PurgeExpiredWorkClaims will mark an event as unclaimed if it's not processed, not
 // being processed, and the current time is equal to or past the claim expiration date.
-func (d *Database) purgeExpiredWorkClaims(context context.Context, tx *sql.Tx) (int64, error) {
-	result, err := tx.ExecContext(
+func (d *Database) PurgeExpiredWorkClaims(context context.Context) (int64, error) {
+	result, err := d.db.ExecContext(
 		context,
 		purgeExpiredWorkClaimsStmt,
 	)
@@ -167,8 +156,8 @@ func (d *Database) purgeExpiredWorkClaims(context context.Context, tx *sql.Tx) (
 
 // resetWorkClaimsForInactiveWorkers will mark an event as unclaimed if the worker that
 // claimed it is inactive.
-func (d *Database) resetWorkClaimsForInactiveWorkers(context context.Context, tx *sql.Tx) (int64, error) {
-	result, err := tx.ExecContext(
+func (d *Database) ResetWorkClaimsForInactiveWorkers(context context.Context) (int64, error) {
+	result, err := d.db.ExecContext(
 		context,
 		resetWorkClaimForInactiveWorkersStmt,
 	)
@@ -176,41 +165,6 @@ func (d *Database) resetWorkClaimsForInactiveWorkers(context context.Context, tx
 		return 0, err
 	}
 	return result.RowsAffected()
-}
-
-// EnforceExpirations will clean up the database of expired workers, work claims,
-// and work seekers.
-func (d *Database) EnforceExpirations(context context.Context) error {
-	tx, err := d.db.Begin()
-	if err != nil {
-		return err
-	}
-
-	expiredWS, err := d.purgeExpiredWorkSeekers(context, tx)
-	if err != nil {
-		return err
-	}
-	log.Infof("%d expired work seekers were cleaned up", expiredWS)
-
-	expiredW, err := d.purgeExpiredWorkers(context, tx)
-	if err != nil {
-		return err
-	}
-	log.Infof("%d expired workers were cleaned up", expiredW)
-
-	inactiveClaims, err := d.resetWorkClaimsForInactiveWorkers(context, tx)
-	if err != nil {
-		return err
-	}
-	log.Infof("%d claims assigned to inactive workers were cleaned up", inactiveClaims)
-
-	expiredWC, err := d.purgeExpiredWorkClaims(context, tx)
-	if err != nil {
-		return err
-	}
-	log.Infof("%d expired work claims were cleaned up", expiredWC)
-
-	return tx.Commit()
 }
 
 // GettingWork records that the worker is looking up work.
