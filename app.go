@@ -124,24 +124,72 @@ func NewApp(db *sqlx.DB) *App {
 	return app
 }
 
-func (a *App) CPUHoursAdd(context context.Context, workItem *db.CPUUsageWorkItem) error {
+type totalUpdaterFn func(int64, *db.CPUUsageWorkItem) int64
+
+func totalAdder(curr int64, workItem *db.CPUUsageWorkItem) int64 {
+	return curr + workItem.Value
+}
+
+func totalSubtracter(curr int64, workItem *db.CPUUsageWorkItem) int64 {
+	return curr - workItem.Value
+}
+
+func totalReplacer(_ int64, workItem *db.CPUUsageWorkItem) int64 {
+	return workItem.Value
+}
+
+func (a *App) updateCPUHours(context context.Context, workItem *db.CPUUsageWorkItem, updater totalUpdaterFn) error {
 	// Open a transaction.
+	tx, err := a.database.Beginx()
+	if err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			log.Error(rbErr)
+		}
+		return err
+	}
+
+	d := db.New(tx)
+
 	// Get the current total.
-	// Add the new value from the event to the total.
+	total, err := d.CurrentCPUHoursForUser(context, workItem.CreatedBy)
+	if err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			log.Error(rbErr)
+		}
+		return err
+	}
+
+	total.Total = updater(total.Total, workItem)
+
 	// Set the new total.
-	// Mark the work item as processed.
+	if err = d.UpdateCPUHoursTotal(context, total); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			log.Error(rbErr)
+		}
+		return err
+	}
+
 	// Commit the transaction
+	if err = tx.Commit(); err != nil {
+		if rbErr := tx.Rollback(); rbErr != nil {
+			log.Error(rbErr)
+		}
+		return err
+	}
+
 	return nil
 }
 
-func (a *App) CPUHoursSubtract(context context.Context, workItem *db.CPUUsageEvent) error {
-	// Open a transaction.
-	// Get the current total.
-	// Subtract the new value in the work item from the total.
-	// Set the new total
-	// Mark the work item as processed.
-	// Commit the transaction.
-	return nil
+func (a *App) CPUHoursAdd(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	return a.updateCPUHours(context, workItem, totalAdder)
+}
+
+func (a *App) CPUHoursSubtract(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	return a.updateCPUHours(context, workItem, totalSubtracter)
+}
+
+func (a *App) CPUHoursReset(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	return a.updateCPUHours(context, workItem, totalReplacer)
 }
 
 // EnforceExpirations will clean up the database of expired workers, work claims,

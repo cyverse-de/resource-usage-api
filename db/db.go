@@ -131,3 +131,13 @@ func (d *Database) AdminAllCPUHours(context context.Context) ([]CPUHours, error)
 
 	return cpuHours, nil
 }
+
+func (d *Database) UpdateCPUHoursTotal(context context.Context, totalObj *CPUHours) error {
+	_, err := d.db.ExecContext(
+		context,
+		updateCurrentCPUHoursForUserQuery,
+		totalObj.UserID,
+		totalObj.Total,
+	)
+	return err
+}

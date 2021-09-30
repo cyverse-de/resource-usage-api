@@ -40,6 +40,12 @@ const currentCPUHoursForUserQuery = `
 	LIMIT 1;
 `
 
+const updateCurrentCPUHoursForUserQuery = `
+	UPDATE ONLY cpu_usage_totals
+	SET total = %2
+	WHERE id = %1;
+`
+
 const allCPUHoursForUserQuery = `
 	SELECT
 		t.id,
