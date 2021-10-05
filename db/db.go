@@ -22,7 +22,7 @@ type CPUUsageEvent struct {
 	ID            string    `db:"id" json:"id"`
 	RecordDate    time.Time `db:"record_date" json:"record_date"`
 	EffectiveDate time.Time `db:"effective_date" json:"effective_date"`
-	EventType     string    `db:"event_type" json:"event_type"`
+	EventType     EventType `db:"event_type" json:"event_type"`
 	Value         int64     `db:"value" json:"value"`
 	CreatedBy     string    `db:"created_by" json:"created_by"`
 	LastModified  string    `db:"last_modified" json:"last_modified"`

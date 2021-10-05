@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
@@ -28,100 +30,6 @@ func (a *App) FixUsername(username string) string {
 		return fmt.Sprintf("%s%s", username, a.userSuffix)
 	}
 	return username
-}
-
-// GreetingHandler handles requests that simply need to know if the service is running.
-func (a *App) GreetingHandler(context echo.Context) error {
-	return context.String(http.StatusOK, "Hello from resource-usage-api.")
-}
-
-// CurrentCPUHours looks up the total CPU hours for the current recording period.
-func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
-	context := c.Request().Context()
-
-	user := c.Param("username")
-	if user == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "user was not set")
-	}
-	user = a.FixUsername(user)
-
-	d := db.New(a.database)
-	results, err := d.CurrentCPUHoursForUser(context, user)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-
-	return c.JSON(http.StatusOK, results)
-}
-
-// AllCPUHoursHandler returns all of the total CPU hours totals, regardless of recording period.
-func (a *App) AllCPUHoursHandler(c echo.Context) error {
-	context := c.Request().Context()
-
-	user := c.Param("username")
-	if user == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "user was not set")
-	}
-	user = a.FixUsername(user)
-
-	d := db.New(a.database)
-	results, err := d.AllCPUHoursForUser(context, user)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-
-	return c.JSON(http.StatusOK, results)
-}
-
-/**
-	Admin Endpoints
-**/
-
-// AdminAllCurrentCPUHoursTotalsHandler looks up all of the total CPU hours totals for all users.
-func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
-	context := c.Request().Context()
-
-	d := db.New(a.database)
-	results, err := d.AdminAllCurrentCPUHours(context)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-
-	return c.JSON(http.StatusOK, results)
-}
-
-// AdminAllCPUHoursTotalsHandler returns all of the total CPU hours totals for all recording periods, regardless of user.
-func (a *App) AdminAllCPUHoursTotalsHandler(c echo.Context) error {
-	context := c.Request().Context()
-
-	d := db.New(a.database)
-	results, err := d.AdminAllCPUHours(context)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
-	}
-
-	return c.JSON(http.StatusOK, results)
-}
-
-func NewApp(db *sqlx.DB) *App {
-	app := &App{
-		database: db,
-		router:   echo.New(),
-	}
-
-	app.router.HTTPErrorHandler = logging.HTTPErrorHandler
-	app.router.GET("/", app.GreetingHandler).Name = "greeting"
-
-	cpuroute := app.router.Group("/cpu")
-	cpuroute.GET("/total", app.CurrentCPUHoursHandler)
-	cpuroute.GET("/total/all", app.AdminAllCPUHoursTotalsHandler)
-
-	admin := app.router.Group("/admin")
-	cpuadmin := admin.Group("/cpu")
-	cpuadmin.GET("/totals", app.AdminAllCurrentCPUHoursHandler)
-	cpuadmin.GET("/totals/all", app.AdminAllCPUHoursTotalsHandler)
-
-	return app
 }
 
 type totalUpdaterFn func(int64, *db.CPUUsageWorkItem) int64
@@ -227,4 +135,151 @@ func (a *App) EnforceExpirations(context context.Context) error {
 	log.Infof("%d expired work claims were cleaned up", expiredWC)
 
 	return tx.Commit()
+}
+
+// GreetingHandler handles requests that simply need to know if the service is running.
+func (a *App) GreetingHandler(context echo.Context) error {
+	return context.String(http.StatusOK, "Hello from resource-usage-api.")
+}
+
+// CurrentCPUHours looks up the total CPU hours for the current recording period.
+func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
+	context := c.Request().Context()
+
+	user := c.Param("username")
+	if user == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "user was not set")
+	}
+	user = a.FixUsername(user)
+
+	d := db.New(a.database)
+	results, err := d.CurrentCPUHoursForUser(context, user)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, results)
+}
+
+// AllCPUHoursHandler returns all of the total CPU hours totals, regardless of recording period.
+func (a *App) AllCPUHoursHandler(c echo.Context) error {
+	context := c.Request().Context()
+
+	user := c.Param("username")
+	if user == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "user was not set")
+	}
+	user = a.FixUsername(user)
+
+	d := db.New(a.database)
+	results, err := d.AllCPUHoursForUser(context, user)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, results)
+}
+
+/**
+	Admin Endpoints
+**/
+
+// AdminAllCurrentCPUHoursTotalsHandler looks up all of the total CPU hours totals for all users.
+func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
+	context := c.Request().Context()
+
+	d := db.New(a.database)
+	results, err := d.AdminAllCurrentCPUHours(context)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, results)
+}
+
+// AdminAllCPUHoursTotalsHandler returns all of the total CPU hours totals for all recording periods, regardless of user.
+func (a *App) AdminAllCPUHoursTotalsHandler(c echo.Context) error {
+	context := c.Request().Context()
+
+	d := db.New(a.database)
+	results, err := d.AdminAllCPUHours(context)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(http.StatusOK, results)
+}
+
+func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
+	var (
+		err        error
+		user       string
+		valueParam string
+		value      int64
+	)
+	context := c.Request().Context()
+
+	user = c.Param("username")
+	if user == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "user was not set")
+	}
+	user = a.FixUsername(user)
+
+	valueParam = c.Param("value")
+	if valueParam == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "value was not set")
+	}
+	value, err = strconv.ParseInt(valueParam, 10, 64)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "value must be parsable as a 64-bit integer")
+	}
+
+	event := db.CPUUsageEvent{
+		EventType:     eventType,
+		EffectiveDate: time.Now(),
+		CreatedBy:     user,
+		Value:         value,
+	}
+
+	d := db.New(a.database)
+
+	return d.AddCPUUsageEvent(context, &event)
+}
+
+func (a *App) AddToTotalHandler(c echo.Context) error {
+	return a.totalHandler(c, db.CPUHoursAdd)
+}
+
+func (a *App) SubtractFromTotalHandler(c echo.Context) error {
+	return a.totalHandler(c, db.CPUHoursSubtract)
+}
+
+func (a *App) ResetTotalHandler(c echo.Context) error {
+	return a.totalHandler(c, db.CPUHoursReset)
+}
+
+func NewApp(db *sqlx.DB) *App {
+	app := &App{
+		database: db,
+		router:   echo.New(),
+	}
+
+	app.router.HTTPErrorHandler = logging.HTTPErrorHandler
+	app.router.GET("/", app.GreetingHandler).Name = "greeting"
+
+	cpuroute := app.router.Group("/cpu")
+	cpuroute.GET("/total/:username", app.CurrentCPUHoursHandler)
+	cpuroute.GET("/total/:username/all", app.AdminAllCPUHoursTotalsHandler)
+
+	modifyroutes := cpuroute.Group("/update")
+	modifyroutes.POST("/:username/add/:value", app.AddToTotalHandler)
+	modifyroutes.POST("/:username/subtract/:value", app.SubtractFromTotalHandler)
+	modifyroutes.POST("/:username/reset/:value", app.ResetTotalHandler)
+
+	admin := app.router.Group("/admin")
+	cpuadmin := admin.Group("/cpu")
+	cpuadmin.GET("/totals", app.AdminAllCurrentCPUHoursHandler)
+	cpuadmin.GET("/totals/all", app.AdminAllCPUHoursTotalsHandler)
+
+	return app
 }
