@@ -12,7 +12,6 @@ import (
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/cyverse-de/resource-usage-api/worker"
-	"github.com/go-co-op/gocron"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
@@ -90,7 +89,9 @@ func main() {
 		queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
 		reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel                 = flag.String("log-level", "warn", "One of trace, debug, info, warn, error, fatal, or panic.")
-		workerExpireIntervalFlag = flag.String("worker-expiration-interval", "1h", "Time time after which the worker expires. Must parse as a time.Duration.")
+		workerLifetimeFlag       = flag.String("worker-lifetime", "1h", "The lifetime of a worker. Must parse as a time.Duration.")
+		claimLifetimeFlag        = flag.String("claim-lifetime", "2m", "The lifetime of a work claim. Must parse as a time.Duration.")
+		seekingLifetimeFlag      = flag.String("seeking-lifetime", "2m", "The amount of time a worker may spend looking for a work item to process. Must parse as a time.Duration.")
 		refreshIntervalFlag      = flag.String("refresh-interval", "5m", "The time between worker re-registration/refreshes. Must parse as a time.Duration.")
 		purgeWorkersIntervalFlag = flag.String("purge-workers-interval", "6m", "The time between attempts to clean out expired workers. Must parse as a time.Duration.")
 		purgeSeekersIntervalFlag = flag.String("purge-seeker-interval", "5m", "The time between attempts to purge workers seeking work items for too long. Must parse as a time.Duration.")
@@ -130,7 +131,7 @@ func main() {
 		log.Fatal("amqp.exchange.type must be set in the configuration file")
 	}
 
-	workerExpireInterval, err := time.ParseDuration(*workerExpireIntervalFlag)
+	workerLifetime, err := time.ParseDuration(*workerLifetimeFlag)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -155,6 +156,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	claimLifetime, err := time.ParseDuration(*claimLifetimeFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	seekingLifetime, err := time.ParseDuration(*seekingLifetimeFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	amqpConfig := amqp.Configuration{
 		URI:          amqpURI,
 		Exchange:     amqpExchange,
@@ -174,22 +185,15 @@ func main() {
 
 	app := NewApp(dbconn)
 
-	sched := gocron.NewScheduler(time.Local)
-
-	// Clean up the expired workers every hour or so.
-	sched.Every(1).Hour().Do(func() {
-		if err := app.EnforceExpirations(context.Background()); err != nil {
-			log.Error(err)
-		}
-	})
-
 	workerConfig := worker.Config{
 		Name:                    uuid.New().String(),
-		Expiration:              time.Now().Add(workerExpireInterval),
+		ExpirationInterval:      workerLifetime,
 		RefreshInterval:         refreshInterval,
 		WorkerPurgeInterval:     purgeWorkersInterval,
 		WorkSeekerPurgeInterval: purgeSeekersInterval,
 		WorkClaimPurgeInterval:  purgeClaimsInterval,
+		ClaimLifetime:           claimLifetime,
+		WorkSeekingLifetime:     seekingLifetime,
 	}
 	database := db.New(dbconn)
 
