@@ -11,7 +11,9 @@ import (
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
+	"github.com/cyverse-de/resource-usage-api/worker"
 	"github.com/go-co-op/gocron"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
@@ -82,12 +84,17 @@ func main() {
 		config *viper.Viper
 		dbconn *sqlx.DB
 
-		configPath = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
-		listenPort = flag.Int("port", 60000, "The port the service listens on for requests")
-		userSuffix = flag.String("user-suffix", "@iplantcollaborative.org", "The user suffix for all users in the DE installation")
-		queue      = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
-		reconnect  = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
-		logLevel   = flag.String("log-level", "warn", "One of trace, debug, info, warn, error, fatal, or panic.")
+		configPath               = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
+		listenPort               = flag.Int("port", 60000, "The port the service listens on for requests")
+		userSuffix               = flag.String("user-suffix", "@iplantcollaborative.org", "The user suffix for all users in the DE installation")
+		queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
+		reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
+		logLevel                 = flag.String("log-level", "warn", "One of trace, debug, info, warn, error, fatal, or panic.")
+		workerExpireIntervalFlag = flag.String("worker-expiration-interval", "1h", "Time time after which the worker expires. Must parse as a time.Duration.")
+		refreshIntervalFlag      = flag.String("refresh-interval", "5m", "The time between worker re-registration/refreshes. Must parse as a time.Duration.")
+		purgeWorkersIntervalFlag = flag.String("purge-workers-interval", "6m", "The time between attempts to clean out expired workers. Must parse as a time.Duration.")
+		purgeSeekersIntervalFlag = flag.String("purge-seeker-interval", "5m", "The time between attempts to purge workers seeking work items for too long. Must parse as a time.Duration.")
+		purgeClaimsIntervalFlag  = flag.String("purge-claims-interval", "6m", "The time between attemtps to purge expired work claims. Must parse as a time.Duration.")
 	)
 
 	flag.Parse()
@@ -123,6 +130,31 @@ func main() {
 		log.Fatal("amqp.exchange.type must be set in the configuration file")
 	}
 
+	workerExpireInterval, err := time.ParseDuration(*workerExpireIntervalFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	refreshInterval, err := time.ParseDuration(*refreshIntervalFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	purgeWorkersInterval, err := time.ParseDuration(*purgeWorkersIntervalFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	purgeSeekersInterval, err := time.ParseDuration(*purgeSeekersIntervalFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	purgeClaimsInterval, err := time.ParseDuration(*purgeClaimsIntervalFlag)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	amqpConfig := amqp.Configuration{
 		URI:          amqpURI,
 		Exchange:     amqpExchange,
@@ -150,6 +182,22 @@ func main() {
 			log.Error(err)
 		}
 	})
+
+	workerConfig := worker.Config{
+		Name:                    uuid.New().String(),
+		Expiration:              time.Now().Add(workerExpireInterval),
+		RefreshInterval:         refreshInterval,
+		WorkerPurgeInterval:     purgeWorkersInterval,
+		WorkSeekerPurgeInterval: purgeSeekersInterval,
+		WorkClaimPurgeInterval:  purgeClaimsInterval,
+	}
+	database := db.New(dbconn)
+
+	w, err := worker.New(context.Background(), &workerConfig, database)
+	if err != nil {
+		log.Fatal(err)
+	}
+	w.Start(context.Background())
 
 	log.Infof("listening on port %d", *listenPort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.router))

@@ -104,8 +104,8 @@ func (d *Database) UnregisterWorker(context context.Context, workerID string) er
 }
 
 // RefreshWorkerRegistration updates the workers activation expiration date.
-func (d *Database) RefreshWorkerRegistration(context context.Context, workerID string) (*time.Time, error) {
-	newTime := time.Now().Add(48 * time.Hour)
+func (d *Database) RefreshWorkerRegistration(context context.Context, workerID string, expirationInterval time.Duration) (*time.Time, error) {
+	newTime := time.Now().Add(expirationInterval)
 	_, err := d.db.ExecContext(
 		context,
 		refreshWorkerStmt,
