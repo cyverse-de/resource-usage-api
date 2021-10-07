@@ -4,7 +4,7 @@ const analysisIDByExternalIDQuery = `
 	SELECT j.id
 	FROM jobs j
 	JOIN job_steps s ON s.job_id = j.id
-	WHERE s.external_id = %1
+	WHERE s.external_id = $1
 `
 
 const analysisQuery = `
@@ -22,8 +22,8 @@ const analysisQuery = `
 		t.system_id
 	FROM jobs j
 	JOIN job_types t ON j.job_type_id = job_types.id
-	WHERE j.id = %1
-	AND j.user_id = %2;
+	WHERE j.id = $1
+	AND j.user_id = $2;
 `
 
 const currentCPUHoursForUserQuery = `
@@ -35,15 +35,15 @@ const currentCPUHoursForUserQuery = `
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
-	WHERE u.username = %1
+	WHERE u.username = $1
 	AND t.effective_range @> now()
 	LIMIT 1;
 `
 
 const updateCurrentCPUHoursForUserQuery = `
-	UPDATE ONLY cpu_usage_totals
-	SET total = %2
-	WHERE id = %1;
+	UPDATE cpu_usage_totals
+	SET total = $2
+	WHERE id = $1;
 `
 
 const allCPUHoursForUserQuery = `
@@ -55,7 +55,7 @@ const allCPUHoursForUserQuery = `
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
-	WHERE u.username = %1;
+	WHERE u.username = $1;
 `
 
 const currentCPUHoursQuery = `
@@ -89,7 +89,7 @@ const insertCPUHourEventStmt = `
 	INSERT INTO cpu_usage_events
 		(record_date, effective_date, event_type_id, value, created_by) 
 	VALUES 
-		(%1, %2, (SELECT id FROM cpu_usage_event_types WHERE name = %3), %4, %5);
+		($1, $2, (SELECT id FROM cpu_usage_event_types WHERE name = $3), $4, $5);
 `
 
 const unprocessedEventsQuery = `
@@ -121,51 +121,51 @@ const unprocessedEventsQuery = `
 `
 
 const claimedByStmt = `
-	UPDATE ONLY cpu_usage_events
+	UPDATE cpu_usage_events
 	SET claimed = true,
-		claimed_by = %2
-	WHERE id = %1;
+		claimed_by = $2
+	WHERE id = $1;
 `
 
 const processingStmt = `
-	UPDATE ONLY cpu_usage_events
+	UPDATE cpu_usage_events
 	SET processing = true,
 		attempts = attempts + 1
-	WHERE id = %1;
+	WHERE id = $1;
 `
 
 const finishedProcessingStmt = `
-	UPDATE ONLY cpu_usage_events
+	UPDATE cpu_usage_events
 	SET processing = false,
 		processed = true
-	WHERE id = %1;
+	WHERE id = $1;
 `
 
 const registerWorkerStmt = `
-	INSERT INTO ONLY cpu_usage_workers
+	INSERT INTO cpu_usage_workers
 		(name, activation_expires_on)
 	VALUES
-		(%1, %2);
+		($1, $2)
 	RETURNING id;
 `
 
 const unregisterWorkerStmt = `
-	UPDATE ONLY cpu_usage_workers
+	UPDATE cpu_usage_workers
 	SET activated = false,
 		getting_work = false
-	WHERE id = %1;
+	WHERE id = $1;
 `
 
 const refreshWorkerStmt = `
-	UPDATE ONLY cpu_usage_workers
-	SET activation_expires_on = %2
-	WHERE id = %1;
+	UPDATE cpu_usage_workers
+	SET activation_expires_on = $2
+	WHERE id = $1;
 `
 
 // Only purge workers (set their activation flag to false) if they're not getting work,
 // they're not actively working on something, and the activation timestamp has passed.
 const purgeExpiredWorkersStmt = `
-	UPDATE ONLY cpu_usage_workers
+	UPDATE cpu_usage_workers
 	SET activated = false,
 		activation_expires_on = NULL
 	WHERE activated
@@ -176,18 +176,18 @@ const purgeExpiredWorkersStmt = `
 
 // Only purge work seekers if the expiration date on their search has expired.
 const purgeExpiredWorkSeekersStmt = `
-	UPDATE ONLY cpu_usage_workers
+	UPDATE cpu_usage_workers
 	SET getting_work = false,
 		getting_work_on = NULL,
 		getting_work_expires_on = NULL
-	WHERE activated,
-	AND getting_work,
+	WHERE activated
+	AND getting_work
 	AND NOT working
-	WHERE CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
+	AND CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
 `
 
 const purgeExpiredWorkClaimsStmt = `
-	UPDATE ONLY cpu_usage_events
+	UPDATE cpu_usage_events
 	SET claimed = false,
 		claimed_by = NULL,
 		claimed_on = NULL
@@ -198,7 +198,7 @@ const purgeExpiredWorkClaimsStmt = `
 `
 
 const resetWorkClaimForInactiveWorkersStmt = `
-	UPDATE ONLY cpu_usage_events
+	UPDATE cpu_usage_events
 	SET claimed = false,
 		claimed_by = NULL,
 		claimed_on = NULL
@@ -207,21 +207,21 @@ const resetWorkClaimForInactiveWorkersStmt = `
 `
 
 const gettingWorkStmt = `
-	UPDATE ONLY cpu_usage_workers
+	UPDATE cpu_usage_workers
 	SET getting_work = true,
-		getting_work_expires_on = %2
-	WHERE id = %1;
+		getting_work_expires_on = $2
+	WHERE id = $1;
 `
 
 const notGettingWorkStmt = `
-	UPDATE ONLY cpu_usage_workers
+	UPDATE cpu_usage_workers
 	SET getting_work = false,
 		getting_work_expires_on = NULL
-	WHERE id = %1;
+	WHERE id = $1;
 `
 
 const setWorkingStmt = `
-	UPDATE ONLY cpu_usage_workers
-	SET working = %2
-	WHERE id = %1;
+	UPDATE cpu_usage_workers
+	SET working = $2
+	WHERE id = $1;
 `
