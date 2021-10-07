@@ -7,6 +7,8 @@ import (
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/go-co-op/gocron"
+	"github.com/jmoiron/sqlx"
+	"go.uber.org/multierr"
 )
 
 var log = logging.Log
@@ -14,7 +16,7 @@ var log = logging.Log
 type Worker struct {
 	ID                  string
 	Scheduler           *gocron.Scheduler
-	database            *db.Database
+	db                  *sqlx.DB // needs to be a *sqlx.DB so we can create tranasactions on it.
 	ClaimLifetime       time.Duration
 	WorkSeekingLifetime time.Duration
 }
@@ -30,13 +32,19 @@ type Config struct {
 	WorkSeekingLifetime     time.Duration
 }
 
-func New(context context.Context, config *Config, database *db.Database) (*Worker, error) {
-	var err error
+func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker, error) {
+	var (
+		err      error
+		database *db.Database
+	)
 
 	worker := Worker{
 		ClaimLifetime:       config.ClaimLifetime,
+		db:                  dbAccessor,
 		WorkSeekingLifetime: config.WorkSeekingLifetime,
 	}
+
+	database = db.New(worker.db)
 
 	worker.ID, err = database.RegisterWorker(context, config.Name, time.Now().Add(config.ExpirationInterval))
 	if err != nil {
@@ -95,19 +103,21 @@ func New(context context.Context, config *Config, database *db.Database) (*Worke
 func (w *Worker) Start(context context.Context) {
 	var err error
 
+	database := db.New(w.db)
+
 	for {
 		now := time.Now()
 
-		if err = w.database.GettingWork(context, w.ID, now.Add(w.WorkSeekingLifetime)); err != nil {
+		if err = database.GettingWork(context, w.ID, now.Add(w.WorkSeekingLifetime)); err != nil {
 			log.Error(err)
 			continue
 		}
 
 		// Grab all eligible work items from the databse.
-		workItems, err := w.database.UnclaimedUnprocessedEvents(context)
+		workItems, err := database.UnclaimedUnprocessedEvents(context)
 		if err != nil {
 			log.Error(err)
-			if err = w.database.DoneGettingWork(context, w.ID); err != nil {
+			if err = database.DoneGettingWork(context, w.ID); err != nil {
 				log.Error(err)
 			}
 			continue
@@ -115,7 +125,7 @@ func (w *Worker) Start(context context.Context) {
 
 		// Can only do something if there's something returned.
 		if len(workItems) == 0 {
-			if err = w.database.DoneGettingWork(context, w.ID); err != nil {
+			if err = database.DoneGettingWork(context, w.ID); err != nil {
 				log.Error(err)
 			}
 			continue
@@ -124,49 +134,136 @@ func (w *Worker) Start(context context.Context) {
 		// If multiple items are retrieved to work on, only process the first one
 		// this may need to change in the future so that we can process items in a batch.
 		workItem := workItems[0]
-		if err = w.database.ClaimEvent(context, workItem.ID, w.ID); err != nil {
-			log.Error(err)
-			if err = w.database.DoneGettingWork(context, w.ID); err != nil {
-				log.Error(err)
-			}
-			continue
-		}
-
-		// Record that the worker is finished getting work.
-		if err = w.database.DoneGettingWork(context, w.ID); err != nil {
+		if err = w.claimWorkItem(context, &workItem); err != nil {
 			log.Error(err)
 			continue
 		}
 
-		// Set the worker as working.
-		if err = w.database.SetWorking(context, w.ID, true); err != nil {
+		if err = w.transitionToWorkingState(context); err != nil {
 			log.Error(err)
-			continue
-		}
-
-		// Set the work item as being processed.
-		if err = w.database.ProcessingEvent(context, workItem.ID); err != nil {
-			// Set the worker as not working since something went wrong.
-			if err = w.database.SetWorking(context, w.ID, false); err != nil {
-				log.Error(err)
-			}
 			continue
 		}
 
 		// TODO: call a synchronous item handler here.
 
-		// Set the workItem as processed
-		if err = w.database.FinishedProcessingEvent(context, workItem.ID); err != nil {
-			// Set the worker as not working since something went wrong recording that the event was processed.
-			if err = w.database.SetWorking(context, w.ID, false); err != nil {
-				log.Error(err)
-			}
-			continue
-		}
-
-		// Set the worker as not working.
-		if err = w.database.SetWorking(context, w.ID, false); err != nil {
+		if err = w.finishWorking(context, &workItem); err != nil {
 			log.Error(err)
 		}
+
 	}
+}
+
+func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	tx, err := w.db.Beginx()
+	if err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	txdb := db.New(tx)
+
+	if err = txdb.ClaimEvent(context, workItem.ID, w.ID); err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	// Set the work item as being processed.
+	if err = txdb.ProcessingEvent(context, workItem.ID); err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+}
+
+func (w *Worker) transitionToWorkingState(context context.Context) error {
+	// Make sure the DoneGettingWork and SetWorking calls are done in a transaction
+	// so the worker doesn't get purged if the expiration is past. Trying to avoid
+	// a race condition.
+
+	tx, err := w.db.Beginx()
+	if err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	txdb := db.New(tx)
+
+	// Record that the worker is finished getting work.
+	if err = txdb.DoneGettingWork(context, w.ID); err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	// Set the worker as working.
+	if err = txdb.SetWorking(context, w.ID, true); err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
+		if rerr := tx.Rollback(); rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	return nil
+}
+
+func (w *Worker) finishWorking(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	// Use a transaction here to avoid causing a race condition that
+	// could cause the worker to get purged between steps.
+	tx, err := w.db.Beginx()
+	if err != nil {
+		return err
+	}
+
+	txdb := db.New(tx)
+
+	// Set the workItem as processed
+	if err = txdb.FinishedProcessingEvent(context, workItem.ID); err != nil {
+		// Set the worker as not working since something went wrong recording that the event was processed.
+		rerr := tx.Rollback()
+		if rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	// Set the worker as not working.
+	if err = txdb.SetWorking(context, w.ID, false); err != nil {
+		rerr := tx.Rollback()
+		if rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	if err = tx.Commit(); err != nil {
+		rerr := tx.Rollback()
+		if rerr != nil {
+			err = multierr.Append(err, rerr)
+		}
+		return err
+	}
+
+	return nil
 }
