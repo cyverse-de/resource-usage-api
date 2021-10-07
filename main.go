@@ -195,9 +195,8 @@ func main() {
 		ClaimLifetime:           claimLifetime,
 		WorkSeekingLifetime:     seekingLifetime,
 	}
-	database := db.New(dbconn)
 
-	w, err := worker.New(context.Background(), &workerConfig, database)
+	w, err := worker.New(context.Background(), &workerConfig, dbconn)
 	if err != nil {
 		log.Fatal(err)
 	}

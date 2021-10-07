@@ -185,6 +185,8 @@ func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWor
 		}
 		return err
 	}
+
+	return nil
 }
 
 func (w *Worker) transitionToWorkingState(context context.Context) error {
