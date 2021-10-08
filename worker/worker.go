@@ -100,6 +100,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 	return &worker, err
 }
 
+// Start gets the Worker busy processing work items.
 func (w *Worker) Start(context context.Context) {
 	var err error
 
@@ -153,6 +154,9 @@ func (w *Worker) Start(context context.Context) {
 	}
 }
 
+// claimWorkItem wraps the logic for claiming an event and marking the worker as processing
+// something in a transaction, which will hopefully prevent race conditions with the code that
+// purges expired work claims and workers.
 func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWorkItem) error {
 	tx, err := w.db.Beginx()
 	if err != nil {
@@ -189,11 +193,10 @@ func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWor
 	return nil
 }
 
+// transitionToWorkingState wraps the logic for finishing off the process of
+// getting work starting work in a transaction, which should avoid race conditions
+// in the clean up functions that run periodically.
 func (w *Worker) transitionToWorkingState(context context.Context) error {
-	// Make sure the DoneGettingWork and SetWorking calls are done in a transaction
-	// so the worker doesn't get purged if the expiration is past. Trying to avoid
-	// a race condition.
-
 	tx, err := w.db.Beginx()
 	if err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
