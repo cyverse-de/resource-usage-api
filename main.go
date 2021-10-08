@@ -200,7 +200,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	w.Start(context.Background())
+
+	go w.Start(context.Background())
 
 	log.Infof("listening on port %d", *listenPort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.router))
