@@ -85,7 +85,6 @@ func main() {
 
 		configPath               = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
 		listenPort               = flag.Int("port", 60000, "The port the service listens on for requests")
-		userSuffix               = flag.String("user-suffix", "@iplantcollaborative.org", "The user suffix for all users in the DE installation")
 		queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
 		reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel                 = flag.String("log-level", "warn", "One of trace, debug, info, warn, error, fatal, or panic.")
@@ -103,7 +102,6 @@ func main() {
 
 	log.Infof("config path is %s", *configPath)
 	log.Infof("listen port is %d", listenPort)
-	log.Infof("user suffix is %s", *userSuffix)
 
 	config, err = configurate.Init(*configPath)
 	if err != nil {
@@ -129,6 +127,11 @@ func main() {
 	amqpExchangeType := config.GetString("amqp.exchange.type")
 	if amqpExchangeType == "" {
 		log.Fatal("amqp.exchange.type must be set in the configuration file")
+	}
+
+	userSuffix := config.GetString("users.domain")
+	if userSuffix == "" {
+		log.Fatal("users.domain must be set in the configuration file")
 	}
 
 	workerLifetime, err := time.ParseDuration(*workerLifetimeFlag)
@@ -183,7 +186,7 @@ func main() {
 
 	dbconn = sqlx.MustConnect("postgres", dbURI)
 
-	app := NewApp(dbconn)
+	app := NewApp(dbconn, userSuffix)
 
 	workerConfig := worker.Config{
 		Name:                    uuid.New().String(),

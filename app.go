@@ -258,10 +258,11 @@ func (a *App) ResetTotalHandler(c echo.Context) error {
 	return a.totalHandler(c, db.CPUHoursReset)
 }
 
-func NewApp(db *sqlx.DB) *App {
+func NewApp(db *sqlx.DB, userSuffix string) *App {
 	app := &App{
-		database: db,
-		router:   echo.New(),
+		database:   db,
+		router:     echo.New(),
+		userSuffix: userSuffix,
 	}
 
 	app.router.HTTPErrorHandler = logging.HTTPErrorHandler
