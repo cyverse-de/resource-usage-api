@@ -27,7 +27,7 @@ type App struct {
 
 func (a *App) FixUsername(username string) string {
 	if !strings.HasSuffix(username, a.userSuffix) {
-		return fmt.Sprintf("%s%s", username, a.userSuffix)
+		return fmt.Sprintf("%s@%s", username, a.userSuffix)
 	}
 	return username
 }
@@ -152,6 +152,8 @@ func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
 	}
 	user = a.FixUsername(user)
 
+	log.Debugf("username %s", user)
+
 	d := db.New(a.database)
 	results, err := d.CurrentCPUHoursForUser(context, user)
 	if err != nil {
@@ -268,14 +270,14 @@ func NewApp(db *sqlx.DB, userSuffix string) *App {
 	app.router.HTTPErrorHandler = logging.HTTPErrorHandler
 	app.router.GET("/", app.GreetingHandler).Name = "greeting"
 
-	cpuroute := app.router.Group("/cpu")
-	cpuroute.GET("/total/:username", app.CurrentCPUHoursHandler)
-	cpuroute.GET("/total/:username/all", app.AdminAllCPUHoursTotalsHandler)
+	cpuroute := app.router.Group("/:username")
+	cpuroute.GET("/total", app.CurrentCPUHoursHandler)
+	cpuroute.GET("/total/all", app.AdminAllCPUHoursTotalsHandler)
 
 	modifyroutes := cpuroute.Group("/update")
-	modifyroutes.POST("/:username/add/:value", app.AddToTotalHandler)
-	modifyroutes.POST("/:username/subtract/:value", app.SubtractFromTotalHandler)
-	modifyroutes.POST("/:username/reset/:value", app.ResetTotalHandler)
+	modifyroutes.POST("/add/:value", app.AddToTotalHandler)
+	modifyroutes.POST("/subtract/:value", app.SubtractFromTotalHandler)
+	modifyroutes.POST("/reset/:value", app.ResetTotalHandler)
 
 	admin := app.router.Group("/admin")
 	cpuadmin := admin.Group("/cpu")
