@@ -56,14 +56,23 @@ func New(db DatabaseAccessor) *Database {
 
 func (d *Database) CurrentCPUHoursForUser(context context.Context, username string) (*CPUHours, error) {
 	var cpuHours CPUHours
-	err := d.db.QueryRowxContext(context, currentCPUHoursForUserQuery, username).Scan(&cpuHours)
+
+	err := d.db.QueryRowxContext(context, currentCPUHoursForUserQuery, username).StructScan(&cpuHours)
+	if err != nil {
+		return nil, err
+	}
+
 	return &cpuHours, err
 }
 
 func (d *Database) AllCPUHoursForUser(context context.Context, username string) ([]CPUHours, error) {
-	var cpuHours []CPUHours
+	var (
+		err      error
+		cpuHours []CPUHours
+		rows     *sqlx.Rows
+	)
 
-	rows, err := d.db.QueryxContext(context, allCPUHoursForUserQuery, username)
+	rows, err = d.db.QueryxContext(context, allCPUHoursForUserQuery, username)
 	if err != nil {
 		return nil, err
 	}
