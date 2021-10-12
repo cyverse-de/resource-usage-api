@@ -190,7 +190,7 @@ func main() {
 
 	dbconn = sqlx.MustConnect("postgres", dbURI)
 
-	app := internal.NewApp(dbconn, userSuffix)
+	app := internal.New(dbconn, userSuffix)
 
 	workerConfig := worker.Config{
 		Name:                    strings.ReplaceAll(uuid.New().String(), "-", ""),

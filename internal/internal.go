@@ -25,7 +25,7 @@ func (a *App) FixUsername(username string) string {
 	return username
 }
 
-func NewApp(db *sqlx.DB, userSuffix string) *App {
+func New(db *sqlx.DB, userSuffix string) *App {
 	app := &App{
 		database:   db,
 		router:     echo.New(),
