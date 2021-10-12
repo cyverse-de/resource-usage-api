@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -148,7 +150,7 @@ func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
 
 	user := c.Param("username")
 	if user == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "user was not set")
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("user was not set"))
 	}
 	user = a.FixUsername(user)
 
@@ -156,8 +158,10 @@ func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
 
 	d := db.New(a.database)
 	results, err := d.CurrentCPUHoursForUser(context, user)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	if err == sql.ErrNoRows {
+		return echo.NewHTTPError(http.StatusNotFound, errors.New("no current CPU hours found for user"))
+	} else if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	return c.JSON(http.StatusOK, results)
@@ -169,14 +173,17 @@ func (a *App) AllCPUHoursHandler(c echo.Context) error {
 
 	user := c.Param("username")
 	if user == "" {
-		return echo.NewHTTPError(http.StatusBadRequest, "user was not set")
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("user was not set"))
 	}
 	user = a.FixUsername(user)
 
 	d := db.New(a.database)
 	results, err := d.AllCPUHoursForUser(context, user)
+	if err == sql.ErrNoRows {
+		return echo.NewHTTPError(http.StatusNotFound, errors.New("no CPU hours found for user"))
+	}
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	return c.JSON(http.StatusOK, results)
