@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/cyverse-de/configurate"
@@ -16,6 +17,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
+
+	_ "github.com/lib/pq"
 )
 
 var log = logging.Log
@@ -83,10 +86,10 @@ func main() {
 		config *viper.Viper
 		dbconn *sqlx.DB
 
-		configPath               = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
-		listenPort               = flag.Int("port", 60000, "The port the service listens on for requests")
-		queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
-		reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
+		configPath = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
+		listenPort = flag.Int("port", 60000, "The port the service listens on for requests")
+		//queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
+		//reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel                 = flag.String("log-level", "warn", "One of trace, debug, info, warn, error, fatal, or panic.")
 		workerLifetimeFlag       = flag.String("worker-lifetime", "1h", "The lifetime of a worker. Must parse as a time.Duration.")
 		claimLifetimeFlag        = flag.String("claim-lifetime", "2m", "The lifetime of a work claim. Must parse as a time.Duration.")
@@ -169,27 +172,27 @@ func main() {
 		log.Fatal(err)
 	}
 
-	amqpConfig := amqp.Configuration{
-		URI:          amqpURI,
-		Exchange:     amqpExchange,
-		ExchangeType: amqpExchangeType,
-		Reconnect:    *reconnect,
-		Queue:        *queue,
-	}
+	// amqpConfig := amqp.Configuration{
+	// 	URI:          amqpURI,
+	// 	Exchange:     amqpExchange,
+	// 	ExchangeType: amqpExchangeType,
+	// 	Reconnect:    *reconnect,
+	// 	Queue:        *queue,
+	// }
 
-	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
-	if err != nil {
-		log.Fatal(err)
-	}
-	go amqpClient.Listen()
-	defer amqpClient.Close()
+	// amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// go amqpClient.Listen()
+	// defer amqpClient.Close()
 
 	dbconn = sqlx.MustConnect("postgres", dbURI)
 
 	app := NewApp(dbconn, userSuffix)
 
 	workerConfig := worker.Config{
-		Name:                    uuid.New().String(),
+		Name:                    strings.ReplaceAll(uuid.New().String(), "-", ""),
 		ExpirationInterval:      workerLifetime,
 		RefreshInterval:         refreshInterval,
 		WorkerPurgeInterval:     purgeWorkersInterval,
@@ -199,10 +202,14 @@ func main() {
 		WorkSeekingLifetime:     seekingLifetime,
 	}
 
+	log.Infof("worker name is %s", workerConfig.Name)
+
 	w, err := worker.New(context.Background(), &workerConfig, dbconn)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Infof("worker ID is %s", w.ID)
 
 	go w.Start(context.Background())
 
