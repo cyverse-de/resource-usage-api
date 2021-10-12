@@ -15,6 +15,10 @@ var Log = logrus.WithFields(logrus.Fields{
 func SetupLogging(configuredLevel string) {
 	var level logrus.Level
 
+	formatter := new(logrus.TextFormatter)
+	formatter.TimestampFormat = "2006-01-02 15:04:05"
+	formatter.FullTimestamp = true
+
 	switch configuredLevel {
 	case "trace":
 		level = logrus.TraceLevel
@@ -35,4 +39,6 @@ func SetupLogging(configuredLevel string) {
 	}
 
 	Log.Logger.SetLevel(level)
+	Log.Logger.SetFormatter(formatter)
+
 }
