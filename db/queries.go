@@ -30,13 +30,15 @@ const currentCPUHoursForUserQuery = `
 	SELECT 
 		t.id,
 		t.total,
+		t.user_id,
+		u.username,
 		lower(t.effective_range) effective_start,
 		upper(t.effective_range) effective_end,
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
 	WHERE u.username = $1
-	AND t.effective_range @> now()
+	AND t.effective_range @> CURRENT_TIMESTAMP::timestamp
 	LIMIT 1;
 `
 
