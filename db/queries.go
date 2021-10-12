@@ -71,7 +71,7 @@ const currentCPUHoursQuery = `
 		t.last_modified
 	FROM cpu_usage_totals t
 	JOIN users u ON t.user_id = u.id
-	WHERE t.effective_range @> now();
+	WHERE t.effective_range @> CURRENT_TIMESTAMP::timestamp;
 `
 
 const allCPUHoursQuery = `
@@ -79,7 +79,7 @@ const allCPUHoursQuery = `
 		t.id,
 		t.total,
 		t.user_id,
-		t.username,
+		u.username,
 		lower(t.effective_range) effective_start,
 		upper(t.effective_range) effective_end,
 		t.last_modified
