@@ -179,10 +179,9 @@ func (a *App) AllCPUHoursHandler(c echo.Context) error {
 
 	d := db.New(a.database)
 	results, err := d.AllCPUHoursForUser(context, user)
-	if err == sql.ErrNoRows {
+	if err == sql.ErrNoRows || len(results) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no CPU hours found for user"))
-	}
-	if err != nil {
+	} else if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -199,7 +198,9 @@ func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
 
 	d := db.New(a.database)
 	results, err := d.AdminAllCurrentCPUHours(context)
-	if err != nil {
+	if err == sql.ErrNoRows || len(results) == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, errors.New("no current CPU hours found"))
+	} else if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
@@ -212,7 +213,9 @@ func (a *App) AdminAllCPUHoursTotalsHandler(c echo.Context) error {
 
 	d := db.New(a.database)
 	results, err := d.AdminAllCPUHours(context)
-	if err != nil {
+	if err == sql.ErrNoRows || len(results) == 0 {
+		return echo.NewHTTPError(http.StatusNotFound, errors.New("no CPU hours found"))
+	} else if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
@@ -279,7 +282,7 @@ func NewApp(db *sqlx.DB, userSuffix string) *App {
 
 	cpuroute := app.router.Group("/:username")
 	cpuroute.GET("/total", app.CurrentCPUHoursHandler)
-	cpuroute.GET("/total/all", app.AdminAllCPUHoursTotalsHandler)
+	cpuroute.GET("/total/all", app.AllCPUHoursHandler)
 
 	modifyroutes := cpuroute.Group("/update")
 	modifyroutes.POST("/add/:value", app.AddToTotalHandler)
