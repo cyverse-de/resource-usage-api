@@ -8,10 +8,15 @@ import (
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/go-co-op/gocron"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 	"go.uber.org/multierr"
 )
 
-var log = logging.Log
+var log = logging.Log.WithFields(
+	logrus.Fields{
+		"package": "worker",
+	},
+)
 
 type Worker struct {
 	ID                  string
@@ -54,48 +59,62 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 	worker.Scheduler = gocron.NewScheduler(time.UTC)
 
 	worker.Scheduler.Every(config.RefreshInterval).Do(func() {
+		log := log.WithFields(logrus.Fields{"context": "refreshing worker registration"})
+		log.Info("start refreshing worker registrations")
+
 		newTime, err := database.RefreshWorkerRegistration(context, worker.ID, config.ExpirationInterval)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		log.Info("new expiration time is %s", newTime.String())
+		log.Infof("new expiration time is %s", newTime.String())
 	})
 
 	worker.Scheduler.Every(config.WorkerPurgeInterval).Do(func() {
+		log := log.WithFields(logrus.Fields{"context": "purging expired workers"})
+		log.Info("start purging expired workers")
+
 		numExpired, err := database.PurgeExpiredWorkers(context)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		log.Info("purged %d expired workers", numExpired)
+		log.Infof("purged %d expired workers", numExpired)
 
+		log.Info("resetting work claims for inactive workers")
 		resetClaims, err := database.ResetWorkClaimsForInactiveWorkers(context)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		log.Info("reset %d work claims", resetClaims)
+		log.Infof("reset %d work claims", resetClaims)
 	})
 
 	worker.Scheduler.Every(config.WorkSeekerPurgeInterval).Do(func() {
+		log := log.WithFields(logrus.Fields{"context": "purging expired work seekers"})
+		log.Info("start purging expired work seekers")
+
 		numExpiredWorkers, err := database.PurgeExpiredWorkSeekers(context)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		log.Info("purged %d expired workers", numExpiredWorkers)
+		log.Infof("purged %d expired workers", numExpiredWorkers)
 	})
 
 	worker.Scheduler.Every(config.WorkClaimPurgeInterval).Do(func() {
+		log := log.WithFields(logrus.Fields{"context": "purging expired work claims"})
+		log.Info("start purging expired work claims")
+
 		numWorkClaims, err := database.PurgeExpiredWorkClaims(context)
 		if err != nil {
 			log.Error(err)
 			return
 		}
-		log.Info("purged %d expired work claims", numWorkClaims)
-
+		log.Infof("purged %d expired work claims", numWorkClaims)
 	})
+
+	worker.Scheduler.StartAsync()
 
 	return &worker, err
 }

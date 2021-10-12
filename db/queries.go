@@ -153,7 +153,7 @@ const registerWorkerStmt = `
 
 const unregisterWorkerStmt = `
 	UPDATE cpu_usage_workers
-	SET activated = false,
+	SET active = false,
 		getting_work = false
 	WHERE id = $1;
 `
@@ -168,9 +168,9 @@ const refreshWorkerStmt = `
 // they're not actively working on something, and the activation timestamp has passed.
 const purgeExpiredWorkersStmt = `
 	UPDATE cpu_usage_workers
-	SET activated = false,
+	SET active = false,
 		activation_expires_on = NULL
-	WHERE activated
+	WHERE active
 	AND NOT getting_work
 	AND NOT working
 	AND CURRENT_TIMESTAMP >= COALESCE(activation_expires_on, to_timestamp(0));
@@ -182,7 +182,7 @@ const purgeExpiredWorkSeekersStmt = `
 	SET getting_work = false,
 		getting_work_on = NULL,
 		getting_work_expires_on = NULL
-	WHERE activated
+	WHERE active
 	AND getting_work
 	AND NOT working
 	AND CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
