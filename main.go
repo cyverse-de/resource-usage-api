@@ -11,6 +11,7 @@ import (
 	"github.com/cyverse-de/configurate"
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/db"
+	"github.com/cyverse-de/resource-usage-api/internal"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/cyverse-de/resource-usage-api/worker"
 	"github.com/google/uuid"
@@ -189,7 +190,7 @@ func main() {
 
 	dbconn = sqlx.MustConnect("postgres", dbURI)
 
-	app := NewApp(dbconn, userSuffix)
+	app := internal.NewApp(dbconn, userSuffix)
 
 	workerConfig := worker.Config{
 		Name:                    strings.ReplaceAll(uuid.New().String(), "-", ""),
@@ -214,5 +215,5 @@ func main() {
 	go w.Start(context.Background())
 
 	log.Infof("listening on port %d", *listenPort)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.router))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.Router()))
 }
