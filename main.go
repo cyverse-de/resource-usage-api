@@ -99,6 +99,7 @@ func main() {
 		purgeWorkersIntervalFlag = flag.String("purge-workers-interval", "6m", "The time between attempts to clean out expired workers. Must parse as a time.Duration.")
 		purgeSeekersIntervalFlag = flag.String("purge-seeker-interval", "5m", "The time between attempts to purge workers seeking work items for too long. Must parse as a time.Duration.")
 		purgeClaimsIntervalFlag  = flag.String("purge-claims-interval", "6m", "The time between attemtps to purge expired work claims. Must parse as a time.Duration.")
+		newUserTotalIntervalFlag = flag.String("new-user-total-interval", "365", "The number of days that user gets for new CPU hours tracking. Must parse as an integer.")
 	)
 
 	flag.Parse()
@@ -173,6 +174,11 @@ func main() {
 		log.Fatal(err)
 	}
 
+	newUserTotalInterval, err := strconv.ParseInt(*newUserTotalIntervalFlag, 10, 64)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// amqpConfig := amqp.Configuration{
 	// 	URI:          amqpURI,
 	// 	Exchange:     amqpExchange,
@@ -201,6 +207,7 @@ func main() {
 		WorkClaimPurgeInterval:  purgeClaimsInterval,
 		ClaimLifetime:           claimLifetime,
 		WorkSeekingLifetime:     seekingLifetime,
+		NewUserTotalInterval:    newUserTotalInterval,
 	}
 
 	log.Infof("worker name is %s", workerConfig.Name)

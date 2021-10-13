@@ -2,6 +2,8 @@ package worker
 
 import (
 	"context"
+	"database/sql"
+	"time"
 
 	"github.com/cyverse-de/resource-usage-api/db"
 	"go.uber.org/multierr"
@@ -31,7 +33,25 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, workItem *db.CPUUs
 
 	// Get the current value
 	cpuhours, err := txdb.CurrentCPUHoursForUser(context, userID)
-	if err != nil {
+	if err == sql.ErrNoRows {
+		start := time.Now()
+		cpuhours = &db.CPUHours{
+			Total:          0,
+			UserID:         userID,
+			EffectiveStart: start,
+			EffectiveEnd:   start.AddDate(0, 0, int(w.NewUserTotalInterval)),
+		}
+		if ierr := txdb.InsertCurrentCPUHoursForUser(context, cpuhours); ierr != nil {
+			log.Error(ierr)
+			err = multierr.Append(err, ierr)
+
+			if rerr := tx.Rollback(); rerr != nil {
+				err = multierr.Append(err, rerr)
+			}
+
+			return err
+		}
+	} else if err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
 			err = multierr.Append(err, rerr)
 		}

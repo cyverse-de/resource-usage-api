@@ -19,11 +19,12 @@ var log = logging.Log.WithFields(
 )
 
 type Worker struct {
-	ID                  string
-	Scheduler           *gocron.Scheduler
-	db                  *sqlx.DB // needs to be a *sqlx.DB so we can create tranasactions on it.
-	ClaimLifetime       time.Duration
-	WorkSeekingLifetime time.Duration
+	ID                   string
+	Scheduler            *gocron.Scheduler
+	db                   *sqlx.DB // needs to be a *sqlx.DB so we can create tranasactions on it.
+	ClaimLifetime        time.Duration
+	WorkSeekingLifetime  time.Duration
+	NewUserTotalInterval int64
 }
 
 type Config struct {
@@ -35,6 +36,7 @@ type Config struct {
 	WorkClaimPurgeInterval  time.Duration
 	ClaimLifetime           time.Duration
 	WorkSeekingLifetime     time.Duration
+	NewUserTotalInterval    int64
 }
 
 func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker, error) {
@@ -44,9 +46,10 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 	)
 
 	worker := Worker{
-		ClaimLifetime:       config.ClaimLifetime,
-		db:                  dbAccessor,
-		WorkSeekingLifetime: config.WorkSeekingLifetime,
+		ClaimLifetime:        config.ClaimLifetime,
+		db:                   dbAccessor,
+		WorkSeekingLifetime:  config.WorkSeekingLifetime,
+		NewUserTotalInterval: config.NewUserTotalInterval,
 	}
 
 	database = db.New(worker.db)
