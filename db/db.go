@@ -54,6 +54,17 @@ func New(db DatabaseAccessor) *Database {
 	return &Database{db: db}
 }
 
+func (d *Database) Username(context context.Context, userID string) (string, error) {
+	var username string
+
+	err := d.db.QueryRowxContext(context, usernameQuery, userID).Scan(&username)
+	if err != nil {
+		return "", err
+	}
+
+	return username, nil
+}
+
 func (d *Database) CurrentCPUHoursForUser(context context.Context, username string) (*CPUHours, error) {
 	var cpuHours CPUHours
 

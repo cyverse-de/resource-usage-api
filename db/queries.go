@@ -7,6 +7,12 @@ const analysisIDByExternalIDQuery = `
 	WHERE s.external_id = $1
 `
 
+const usernameQuery = `
+	SELECT username
+	FROM users
+	WHERE id = $1;
+`
+
 const analysisQuery = `
 	SELECT
 		j.id,

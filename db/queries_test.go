@@ -11,6 +11,7 @@ import (
 var queries = map[string]string{
 	"analysisIDByExternalIDQuery":          analysisIDByExternalIDQuery,
 	"analysisQuery":                        analysisQuery,
+	"usernameQuery":                        usernameQuery,
 	"currentCPUHoursForUserQuery":          currentCPUHoursForUserQuery,
 	"updateCurrentCPUHoursForUserQuery":    updateCurrentCPUHoursForUserQuery,
 	"allCPUHoursForUserQuery":              allCPUHoursForUserQuery,
