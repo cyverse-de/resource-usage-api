@@ -128,10 +128,15 @@ func (w *Worker) Start(context context.Context) {
 	for {
 		now := time.Now()
 
+		log := log.WithFields(logrus.Fields{"context": "processing work items"})
+		log.Info("start processing work items")
+
 		if err = database.GettingWork(context, w.ID, now.Add(w.WorkSeekingLifetime)); err != nil {
 			log.Error(err)
 			continue
 		}
+
+		log.Infof("marked worker %s as working", w.ID)
 
 		// Grab all eligible work items from the databse.
 		workItems, err := database.UnclaimedUnprocessedEvents(context)
@@ -142,6 +147,8 @@ func (w *Worker) Start(context context.Context) {
 			}
 			continue
 		}
+
+		log.Infof("grabbed %d eligible work items from the database.", len(workItems))
 
 		// Can only do something if there's something returned.
 		if len(workItems) == 0 {
@@ -159,17 +166,43 @@ func (w *Worker) Start(context context.Context) {
 			continue
 		}
 
+		log.Infof("worker %s claimed work item %s", w.ID, workItem.ID)
+
 		if err = w.transitionToWorkingState(context); err != nil {
 			log.Error(err)
 			continue
 		}
 
-		// TODO: call a synchronous item handler here.
+		log.Infof("worker %s is in the working state", w.ID)
+
+		switch workItem.EventType {
+		case db.CPUHoursAdd:
+			log.Infof("worker %s is adding to the CPU hours total", w.ID)
+			if err = w.AddCPUHours(context, &workItem); err != nil {
+				log.Error(err)
+			}
+			log.Infof("worker %s is done adding to the CPU hours total", w.ID)
+
+		case db.CPUHoursSubtract:
+			log.Infof("worker %s is subtracting from the CPU hours total", w.ID)
+			if err = w.SubtractCPUHours(context, &workItem); err != nil {
+				log.Error(err)
+			}
+			log.Infof("worker %s is done subtracting from the CPU hours total", w.ID)
+
+		case db.CPUHoursReset:
+			log.Infof("worker %s is resetting the CPU hours total", w.ID)
+			if err = w.ResetCPUHours(context, &workItem); err != nil {
+				log.Error(err)
+			}
+			log.Infof("worker %s is done resetting the CPU hours total", w.ID)
+		}
 
 		if err = w.finishWorking(context, &workItem); err != nil {
 			log.Error(err)
 		}
 
+		log.Infof("worker %s is marked as finished with work item %s", w.ID, workItem.ID)
 	}
 }
 
