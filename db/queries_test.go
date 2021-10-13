@@ -13,6 +13,7 @@ var queries = map[string]string{
 	"analysisQuery":                        analysisQuery,
 	"usernameQuery":                        usernameQuery,
 	"currentCPUHoursForUserQuery":          currentCPUHoursForUserQuery,
+	"addCurrentCPUHoursForUserStmt":        addCurrentCPUHoursForUserStmt,
 	"updateCurrentCPUHoursForUserQuery":    updateCurrentCPUHoursForUserQuery,
 	"allCPUHoursForUserQuery":              allCPUHoursForUserQuery,
 	"currentCPUHoursQuery":                 currentCPUHoursQuery,

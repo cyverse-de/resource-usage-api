@@ -48,10 +48,18 @@ const currentCPUHoursForUserQuery = `
 	LIMIT 1;
 `
 
+const addCurrentCPUHoursForUserStmt = `
+	INSERT INTO cpu_usage_totals
+		(total, user_id, effective_range)
+	VALUES
+		($1, $2, tsrange($3, $4, '[)'));
+`
+
 const updateCurrentCPUHoursForUserQuery = `
 	UPDATE cpu_usage_totals
 	SET total = $2
-	WHERE id = $1;
+	WHERE id = $1
+	AND t.effective_range @> CURRENT_TIMESTAMP::timestamp;
 `
 
 const allCPUHoursForUserQuery = `

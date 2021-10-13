@@ -76,6 +76,18 @@ func (d *Database) CurrentCPUHoursForUser(context context.Context, username stri
 	return &cpuHours, err
 }
 
+func (d *Database) InsertCurrentCPUHoursForUser(context context.Context, cpuHours *CPUHours) error {
+	_, err := d.db.ExecContext(
+		context,
+		addCurrentCPUHoursForUserStmt,
+		cpuHours.Total,
+		cpuHours.UserID,
+		cpuHours.EffectiveStart,
+		cpuHours.EffectiveEnd,
+	)
+	return err
+}
+
 func (d *Database) AllCPUHoursForUser(context context.Context, username string) ([]CPUHours, error) {
 	var (
 		err      error
