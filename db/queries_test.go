@@ -12,6 +12,7 @@ var queries = map[string]string{
 	"analysisIDByExternalIDQuery":          analysisIDByExternalIDQuery,
 	"analysisQuery":                        analysisQuery,
 	"usernameQuery":                        usernameQuery,
+	"userIDQuery":                          userIDQuery,
 	"currentCPUHoursForUserQuery":          currentCPUHoursForUserQuery,
 	"addCurrentCPUHoursForUserStmt":        addCurrentCPUHoursForUserStmt,
 	"updateCurrentCPUHoursForUserQuery":    updateCurrentCPUHoursForUserQuery,

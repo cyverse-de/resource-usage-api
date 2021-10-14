@@ -39,7 +39,7 @@ func (a *App) Router() *echo.Echo {
 	a.router.HTTPErrorHandler = logging.HTTPErrorHandler
 	a.router.GET("/", a.GreetingHandler).Name = "greeting"
 
-	cpuroute := a.router.Group("/:username")
+	cpuroute := a.router.Group("/:username/cpu")
 	cpuroute.GET("/total", a.CurrentCPUHoursHandler)
 	cpuroute.GET("/total/all", a.AllCPUHoursHandler)
 

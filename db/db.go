@@ -31,12 +31,13 @@ type CPUUsageEvent struct {
 type CPUUsageWorkItem struct {
 	CPUUsageEvent
 	Claimed               bool
-	ClaimedBy             string
-	ClaimExpiresOn        time.Time
+	ClaimedBy             sql.NullString `db:"claimed_by" json:"claimed_by"`
+	ClaimExpiresOn        sql.NullTime   `db:"claim_expires_on" json:"claim_expires_on"`
+	ClaimedOn             sql.NullTime   `db:"claimed_on" json:"claimed_on"`
 	Processed             bool
 	Processing            bool
-	ProcessedOn           time.Time
-	MaxProcessingAttempts int
+	ProcessedOn           sql.NullTime `db:"processed_on" json:"processed_on"`
+	MaxProcessingAttempts int          `db:"max_processing_attempts" json:"max_processing_attempts"`
 	Attempts              int
 }
 
@@ -63,6 +64,17 @@ func (d *Database) Username(context context.Context, userID string) (string, err
 	}
 
 	return username, nil
+}
+
+func (d *Database) UserID(context context.Context, username string) (string, error) {
+	var userID string
+
+	err := d.db.QueryRowxContext(context, userIDQuery, username).Scan(&userID)
+	if err != nil {
+		return "", err
+	}
+
+	return userID, nil
 }
 
 func (d *Database) CurrentCPUHoursForUser(context context.Context, username string) (*CPUHours, error) {

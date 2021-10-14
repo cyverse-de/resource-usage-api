@@ -132,14 +132,14 @@ func (w *Worker) Start(context context.Context) {
 		now := time.Now()
 
 		log := log.WithFields(logrus.Fields{"context": "processing work items"})
-		log.Info("start processing work items")
+		log.Debugf("start looking for work items")
 
 		if err = database.GettingWork(context, w.ID, now.Add(w.WorkSeekingLifetime)); err != nil {
 			log.Error(err)
 			continue
 		}
 
-		log.Infof("marked worker %s as working", w.ID)
+		log.Infof("worker %s is looking for work", w.ID)
 
 		// Grab all eligible work items from the databse.
 		workItems, err := database.UnclaimedUnprocessedEvents(context)
@@ -148,16 +148,18 @@ func (w *Worker) Start(context context.Context) {
 			if err = database.DoneGettingWork(context, w.ID); err != nil {
 				log.Error(err)
 			}
+			time.Sleep(30 * time.Second)
 			continue
 		}
 
-		log.Infof("grabbed %d eligible work items from the database.", len(workItems))
+		log.Debugf("found %d eligible work items from the database.", len(workItems))
 
 		// Can only do something if there's something returned.
 		if len(workItems) == 0 {
 			if err = database.DoneGettingWork(context, w.ID); err != nil {
 				log.Error(err)
 			}
+			time.Sleep(30 * time.Second)
 			continue
 		}
 
@@ -169,7 +171,7 @@ func (w *Worker) Start(context context.Context) {
 			continue
 		}
 
-		log.Infof("worker %s claimed work item %s", w.ID, workItem.ID)
+		log.Infof("worker %s has claimed work item %s", w.ID, workItem.ID)
 
 		if err = w.transitionToWorkingState(context); err != nil {
 			log.Error(err)
@@ -180,32 +182,32 @@ func (w *Worker) Start(context context.Context) {
 
 		switch workItem.EventType {
 		case db.CPUHoursAdd:
-			log.Infof("worker %s is adding to the CPU hours total", w.ID)
+			log.Debugf("worker %s is adding to the CPU hours total", w.ID)
 			if err = w.AddCPUHours(context, &workItem); err != nil {
 				log.Error(err)
 			}
-			log.Infof("worker %s is done adding to the CPU hours total", w.ID)
+			log.Debugf("worker %s is done adding to the CPU hours total", w.ID)
 
 		case db.CPUHoursSubtract:
-			log.Infof("worker %s is subtracting from the CPU hours total", w.ID)
+			log.Debugf("worker %s is subtracting from the CPU hours total", w.ID)
 			if err = w.SubtractCPUHours(context, &workItem); err != nil {
 				log.Error(err)
 			}
-			log.Infof("worker %s is done subtracting from the CPU hours total", w.ID)
+			log.Debugf("worker %s is done subtracting from the CPU hours total", w.ID)
 
 		case db.CPUHoursReset:
-			log.Infof("worker %s is resetting the CPU hours total", w.ID)
+			log.Debugf("worker %s is resetting the CPU hours total", w.ID)
 			if err = w.ResetCPUHours(context, &workItem); err != nil {
 				log.Error(err)
 			}
-			log.Infof("worker %s is done resetting the CPU hours total", w.ID)
+			log.Debugf("worker %s is done resetting the CPU hours total", w.ID)
 		}
 
 		if err = w.finishWorking(context, &workItem); err != nil {
 			log.Error(err)
 		}
 
-		log.Infof("worker %s is marked as finished with work item %s", w.ID, workItem.ID)
+		log.Infof("worker %s is finished with work item %s", w.ID, workItem.ID)
 	}
 }
 
@@ -213,6 +215,8 @@ func (w *Worker) Start(context context.Context) {
 // something in a transaction, which will hopefully prevent race conditions with the code that
 // purges expired work claims and workers.
 func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	log := log.WithFields(logrus.Fields{"context": "claiming work item"})
+
 	tx, err := w.db.Beginx()
 	if err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
@@ -220,6 +224,8 @@ func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWor
 		}
 		return err
 	}
+
+	log.Debug("began transaction")
 
 	txdb := db.New(tx)
 
@@ -230,6 +236,8 @@ func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWor
 		return err
 	}
 
+	log.Debugf("worker %s claimed work item %s", w.ID, workItem.ID)
+
 	// Set the work item as being processed.
 	if err = txdb.ProcessingEvent(context, workItem.ID); err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
@@ -238,12 +246,16 @@ func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWor
 		return err
 	}
 
+	log.Debugf("work item %s is marked as being processed", workItem.ID)
+
 	if err = tx.Commit(); err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
 			err = multierr.Append(err, rerr)
 		}
 		return err
 	}
+
+	log.Debug("committed transaction for claiming work item")
 
 	return nil
 }
@@ -252,6 +264,8 @@ func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWor
 // getting work starting work in a transaction, which should avoid race conditions
 // in the clean up functions that run periodically.
 func (w *Worker) transitionToWorkingState(context context.Context) error {
+	log := log.WithFields(logrus.Fields{"context": "claiming work item"})
+
 	tx, err := w.db.Beginx()
 	if err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
@@ -262,16 +276,24 @@ func (w *Worker) transitionToWorkingState(context context.Context) error {
 
 	txdb := db.New(tx)
 
+	log.Debugf("began transaction for moving worker %s to the working state", w.ID)
+
 	// Record that the worker is finished getting work.
 	if err = txdb.DoneGettingWork(context, w.ID); err != nil {
+		log.Error(err)
+		log.Infof("rolling back transaction")
 		if rerr := tx.Rollback(); rerr != nil {
 			err = multierr.Append(err, rerr)
 		}
 		return err
 	}
 
+	log.Debugf("recorded that worker %s is done getting work", w.ID)
+
 	// Set the worker as working.
 	if err = txdb.SetWorking(context, w.ID, true); err != nil {
+		log.Error(err)
+		log.Infof("rolling back transaction")
 		if rerr := tx.Rollback(); rerr != nil {
 			err = multierr.Append(err, rerr)
 		}
@@ -279,22 +301,30 @@ func (w *Worker) transitionToWorkingState(context context.Context) error {
 	}
 
 	if err = tx.Commit(); err != nil {
+		log.Error(err)
+		log.Infof("rolling back transaction")
 		if rerr := tx.Rollback(); rerr != nil {
 			err = multierr.Append(err, rerr)
 		}
 		return err
 	}
 
+	log.Debugf("committed transaction for moving worker %s to the working state", w.ID)
+
 	return nil
 }
 
 func (w *Worker) finishWorking(context context.Context, workItem *db.CPUUsageWorkItem) error {
+	log := logging.Log.WithFields(logrus.Fields{"context": "mark work item finished"})
+
 	// Use a transaction here to avoid causing a race condition that
 	// could cause the worker to get purged between steps.
 	tx, err := w.db.Beginx()
 	if err != nil {
 		return err
 	}
+
+	log.Debugf("began transaction for finishing work item %s", workItem.ID)
 
 	txdb := db.New(tx)
 
@@ -308,6 +338,8 @@ func (w *Worker) finishWorking(context context.Context, workItem *db.CPUUsageWor
 		return err
 	}
 
+	log.Debugf("work item %s is marked as processed", workItem.ID)
+
 	// Set the worker as not working.
 	if err = txdb.SetWorking(context, w.ID, false); err != nil {
 		rerr := tx.Rollback()
@@ -317,6 +349,8 @@ func (w *Worker) finishWorking(context context.Context, workItem *db.CPUUsageWor
 		return err
 	}
 
+	log.Debugf("worker %s is no longer working", w.ID)
+
 	if err = tx.Commit(); err != nil {
 		rerr := tx.Rollback()
 		if rerr != nil {
@@ -324,6 +358,8 @@ func (w *Worker) finishWorking(context context.Context, workItem *db.CPUUsageWor
 		}
 		return err
 	}
+
+	log.Debugf("committed transaction for finishing work item %s", workItem.ID)
 
 	return nil
 }

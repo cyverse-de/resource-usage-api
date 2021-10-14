@@ -97,6 +97,13 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 	}
 	user = a.FixUsername(user)
 
+	d := db.New(a.database)
+
+	userID, err := d.UserID(context, user)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "user not found")
+	}
+
 	valueParam = c.Param("value")
 	if valueParam == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "value was not set")
@@ -108,12 +115,11 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 
 	event := db.CPUUsageEvent{
 		EventType:     eventType,
+		RecordDate:    time.Now(),
 		EffectiveDate: time.Now(),
-		CreatedBy:     user,
+		CreatedBy:     userID,
 		Value:         value,
 	}
-
-	d := db.New(a.database)
 
 	return d.AddCPUUsageEvent(context, &event)
 }

@@ -13,6 +13,12 @@ const usernameQuery = `
 	WHERE id = $1;
 `
 
+const userIDQuery = `
+	SELECT id
+	FROM users
+	WHERE username = $1;
+`
+
 const analysisQuery = `
 	SELECT
 		j.id,
@@ -58,8 +64,8 @@ const addCurrentCPUHoursForUserStmt = `
 const updateCurrentCPUHoursForUserQuery = `
 	UPDATE cpu_usage_totals
 	SET total = $2
-	WHERE id = $1
-	AND t.effective_range @> CURRENT_TIMESTAMP::timestamp;
+	WHERE user_id = $1
+	AND effective_range @> CURRENT_TIMESTAMP::timestamp;
 `
 
 const allCPUHoursForUserQuery = `
@@ -115,7 +121,7 @@ const unprocessedEventsQuery = `
 		c.effective_date,
 		e.name event_type,
 		c.value,
-		u.username created_by,
+		c.created_by,
 		c.last_modified,
 		c.claimed,
 		c.claimed_by,

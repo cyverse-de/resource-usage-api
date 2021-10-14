@@ -8,8 +8,6 @@ import (
 
 var Log = logrus.WithFields(logrus.Fields{
 	"service": "resource-usage-api",
-	"art-id":  "resource-usage-api",
-	"group":   "org.cyverse",
 })
 
 func SetupLogging(configuredLevel string) {
@@ -40,5 +38,4 @@ func SetupLogging(configuredLevel string) {
 
 	Log.Logger.SetLevel(level)
 	Log.Logger.SetFormatter(formatter)
-
 }
