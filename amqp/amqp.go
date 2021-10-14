@@ -4,11 +4,12 @@ import (
 	"encoding/json"
 
 	"github.com/cyverse-de/resource-usage-api/logging"
+	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 	"gopkg.in/cyverse-de/messaging.v6"
 )
 
-var log = logging.Log
+var log = logging.Log.WithFields(logrus.Fields{"package": "amqp"})
 
 type Configuration struct {
 	URI           string

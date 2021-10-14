@@ -7,9 +7,10 @@ import (
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 )
 
-var log = logging.Log
+var log = logging.Log.WithFields(logrus.Fields{"package": "internal"})
 
 // App encapsulates the application logic.
 type App struct {

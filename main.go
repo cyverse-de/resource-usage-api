@@ -16,13 +16,14 @@ import (
 	"github.com/cyverse-de/resource-usage-api/worker"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
 
 	_ "github.com/lib/pq"
 )
 
-var log = logging.Log
+var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
 func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
 	dedb := db.New(dbClient)
