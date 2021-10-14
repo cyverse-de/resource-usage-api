@@ -224,8 +224,9 @@ const resetWorkClaimForInactiveWorkersStmt = `
 	SET claimed = false,
 		claimed_by = NULL,
 		claimed_on = NULL
+	FROM ( SELECT id FROM cpu_usage_workers WHERE NOT active ) AS sub
 	WHERE claimed = true
-	AND claimed_by = ( SELECT id FROM cpu_usage_workers WHERE NOT active );
+	AND claimed_by = sub.id;
 `
 
 const gettingWorkStmt = `
