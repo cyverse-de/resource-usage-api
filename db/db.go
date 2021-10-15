@@ -58,13 +58,13 @@ func New(db DatabaseAccessor) *Database {
 func (d *Database) Username(context context.Context, userID string) (string, error) {
 	var username string
 
-	const usernameQuery = `
+	const q = `
 		SELECT username
 		FROM users
 		WHERE id = $1;
 	`
 
-	err := d.db.QueryRowxContext(context, usernameQuery, userID).Scan(&username)
+	err := d.db.QueryRowxContext(context, q, userID).Scan(&username)
 	if err != nil {
 		return "", err
 	}
@@ -75,13 +75,13 @@ func (d *Database) Username(context context.Context, userID string) (string, err
 func (d *Database) UserID(context context.Context, username string) (string, error) {
 	var userID string
 
-	const userIDQuery = `
+	const q = `
 		SELECT id
 		FROM users
 		WHERE username = $1;
 	`
 
-	err := d.db.QueryRowxContext(context, userIDQuery, username).Scan(&userID)
+	err := d.db.QueryRowxContext(context, q, username).Scan(&userID)
 	if err != nil {
 		return "", err
 	}
@@ -92,7 +92,7 @@ func (d *Database) UserID(context context.Context, username string) (string, err
 func (d *Database) CurrentCPUHoursForUser(context context.Context, username string) (*CPUHours, error) {
 	var cpuHours CPUHours
 
-	const currentCPUHoursForUserQuery = `
+	const q = `
 		SELECT 
 			t.id,
 			t.total,
@@ -107,26 +107,23 @@ func (d *Database) CurrentCPUHoursForUser(context context.Context, username stri
 		AND t.effective_range @> CURRENT_TIMESTAMP::timestamp
 		LIMIT 1;
 	`
-
-	err := d.db.QueryRowxContext(context, currentCPUHoursForUserQuery, username).StructScan(&cpuHours)
+	err := d.db.QueryRowxContext(context, q, username).StructScan(&cpuHours)
 	if err != nil {
 		return nil, err
 	}
-
 	return &cpuHours, err
 }
 
 func (d *Database) InsertCurrentCPUHoursForUser(context context.Context, cpuHours *CPUHours) error {
-	const addCurrentCPUHoursForUserStmt = `
+	const q = `
 		INSERT INTO cpu_usage_totals
 			(total, user_id, effective_range)
 		VALUES
 			($1, $2, tsrange($3, $4, '[)'));
 	`
-
 	_, err := d.db.ExecContext(
 		context,
-		addCurrentCPUHoursForUserStmt,
+		q,
 		cpuHours.Total,
 		cpuHours.UserID,
 		cpuHours.EffectiveStart,
@@ -142,7 +139,7 @@ func (d *Database) AllCPUHoursForUser(context context.Context, username string) 
 		rows     *sqlx.Rows
 	)
 
-	const allCPUHoursForUserQuery = `
+	const q = `
 		SELECT
 			t.id,
 			t.total,
@@ -154,7 +151,7 @@ func (d *Database) AllCPUHoursForUser(context context.Context, username string) 
 		WHERE u.username = $1;
 	`
 
-	rows, err = d.db.QueryxContext(context, allCPUHoursForUserQuery, username)
+	rows, err = d.db.QueryxContext(context, q, username)
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +175,7 @@ func (d *Database) AllCPUHoursForUser(context context.Context, username string) 
 func (d *Database) AdminAllCurrentCPUHours(context context.Context) ([]CPUHours, error) {
 	var cpuHours []CPUHours
 
-	const currentCPUHoursQuery = `
+	const q = `
 		SELECT 
 			t.id,
 			t.total,
@@ -192,7 +189,7 @@ func (d *Database) AdminAllCurrentCPUHours(context context.Context) ([]CPUHours,
 		WHERE t.effective_range @> CURRENT_TIMESTAMP::timestamp;
 	`
 
-	rows, err := d.db.QueryxContext(context, currentCPUHoursQuery)
+	rows, err := d.db.QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}
@@ -216,7 +213,7 @@ func (d *Database) AdminAllCurrentCPUHours(context context.Context) ([]CPUHours,
 func (d *Database) AdminAllCPUHours(context context.Context) ([]CPUHours, error) {
 	var cpuHours []CPUHours
 
-	const allCPUHoursQuery = `
+	const q = `
 		SELECT 
 			t.id,
 			t.total,
@@ -229,7 +226,7 @@ func (d *Database) AdminAllCPUHours(context context.Context) ([]CPUHours, error)
 		JOIN users u ON t.user_id = u.id;
 	`
 
-	rows, err := d.db.QueryxContext(context, allCPUHoursQuery)
+	rows, err := d.db.QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +248,7 @@ func (d *Database) AdminAllCPUHours(context context.Context) ([]CPUHours, error)
 }
 
 func (d *Database) UpdateCPUHoursTotal(context context.Context, totalObj *CPUHours) error {
-	const updateCurrentCPUHoursForUserQuery = `
+	const q = `
 		UPDATE cpu_usage_totals
 		SET total = $2
 		WHERE user_id = $1
@@ -260,7 +257,7 @@ func (d *Database) UpdateCPUHoursTotal(context context.Context, totalObj *CPUHou
 
 	_, err := d.db.ExecContext(
 		context,
-		updateCurrentCPUHoursForUserQuery,
+		q,
 		totalObj.UserID,
 		totalObj.Total,
 	)
