@@ -50,9 +50,23 @@ func (a *App) Router() *echo.Echo {
 	modifyroutes.POST("/reset/:value", a.ResetTotalHandler)
 
 	admin := a.router.Group("/admin")
+
+	workers := admin.Group("/workers")
+	workers.GET("/", a.AdminListWorkersHandler)
+	workers.GET("/:id", a.AdminGetWorkerHandler)
+	workers.POST("/:id", a.AdminUpdateWorkerHandler)
+	workers.DELETE("/:id", a.AdminDeleteWorkerHandler)
+
 	cpuadmin := admin.Group("/cpu")
 	cpuadmin.GET("/totals", a.AdminAllCurrentCPUHoursHandler)
 	cpuadmin.GET("/totals/all", a.AdminAllCPUHoursTotalsHandler)
+
+	events := cpuadmin.Group("/events")
+	events.GET("/", a.AdminListEvents)
+	events.GET("/user/:username", a.AdminListAllUserEventsHandler)
+	events.GET("/:id", a.AdminGetEventHandler)
+	events.POST("/:id", a.AdminUpdateEventHandler)
+	events.DELETE("/:id", a.AdminDeleteEventHandler)
 
 	return a.router
 }

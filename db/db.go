@@ -5,8 +5,11 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 )
+
+var log = logging.Log
 
 type CPUHours struct {
 	ID             string    `db:"id" json:"id"`
@@ -16,29 +19,6 @@ type CPUHours struct {
 	EffectiveStart time.Time `db:"effective_start" json:"effective_start"`
 	EffectiveEnd   time.Time `db:"effective_end" json:"effective_end"`
 	LastModified   time.Time `db:"last_modified" json:"last_modified"`
-}
-
-type CPUUsageEvent struct {
-	ID            string    `db:"id" json:"id"`
-	RecordDate    time.Time `db:"record_date" json:"record_date"`
-	EffectiveDate time.Time `db:"effective_date" json:"effective_date"`
-	EventType     EventType `db:"event_type" json:"event_type"`
-	Value         int64     `db:"value" json:"value"`
-	CreatedBy     string    `db:"created_by" json:"created_by"`
-	LastModified  string    `db:"last_modified" json:"last_modified"`
-}
-
-type CPUUsageWorkItem struct {
-	CPUUsageEvent
-	Claimed               bool
-	ClaimedBy             sql.NullString `db:"claimed_by" json:"claimed_by"`
-	ClaimExpiresOn        sql.NullTime   `db:"claim_expires_on" json:"claim_expires_on"`
-	ClaimedOn             sql.NullTime   `db:"claimed_on" json:"claimed_on"`
-	Processed             bool
-	Processing            bool
-	ProcessedOn           sql.NullTime `db:"processed_on" json:"processed_on"`
-	MaxProcessingAttempts int          `db:"max_processing_attempts" json:"max_processing_attempts"`
-	Attempts              int
 }
 
 type DatabaseAccessor interface {

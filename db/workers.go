@@ -2,66 +2,44 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"time"
-
-	"github.com/cyverse-de/resource-usage-api/logging"
 )
 
-var log = logging.Log
-
-// AddCPUUsageEvent adds a new usage event to the database with the default values for
-// the work queue fields.
-func (d *Database) AddCPUUsageEvent(context context.Context, event *CPUUsageEvent) error {
-	const q = `
-		INSERT INTO cpu_usage_events
-			(record_date, effective_date, event_type_id, value, created_by) 
-		VALUES 
-			($1, $2, (SELECT id FROM cpu_usage_event_types WHERE name = $3), $4, $5);
-	`
-
-	_, err := d.db.ExecContext(
-		context,
-		q,
-		event.RecordDate,
-		event.EffectiveDate,
-		event.EventType,
-		event.Value,
-		event.CreatedBy,
-	)
-	return err
+type Worker struct {
+	ID                   string       `db:"id" json:"id"`
+	Name                 string       `db:"name" json:"name"`
+	AddedOn              string       `db:"added_on" json:"added_on"`
+	Active               bool         `db:"active" json:"active"`
+	ActivationExpiresOn  sql.NullTime `db:"activation_expires_on" json:"activation_expires_on"`
+	DeactivatedOn        sql.NullTime `db:"deactivated_on" json:"deactivated_on"`
+	ActivatedOn          sql.NullTime `db:"activated_on" json:"activated_on"`
+	GettingWork          bool         `db:"getting_work" json:"getting_work"`
+	GettingWorkOn        sql.NullTime `db:"getting_work_on" json:"getting_work_on"`
+	GettingWorkExpiresOn sql.NullTime `db:"getting_work_expires_on" json:"getting_work_expires_on"`
+	Working              bool         `db:"working" json:"working"`
+	WorkingOn            sql.NullTime `db:"working_on" json:"working_on"`
+	LastModified         time.Time    `db:"last_modified" json:"last_modified"`
 }
 
-// UnclaimedUnprocessedEvents returns a listing of the CPUUsageWorkItem for records that are not
-// claimed, processed, being processed, expired, and have not reached the maximum number of attempts.
-func (d *Database) UnclaimedUnprocessedEvents(context context.Context) ([]CPUUsageWorkItem, error) {
-	var workItems []CPUUsageWorkItem
-
+func (d *Database) ListWorkers(context context.Context) ([]Worker, error) {
+	var workers []Worker
 	const q = `
 		SELECT 
-			c.id,
-			c.record_date,
-			c.effective_date,
-			e.name event_type,
-			c.value,
-			c.created_by,
-			c.last_modified,
-			c.claimed,
-			c.claimed_by,
-			c.claimed_on,
-			c.claim_expires_on,
-			c.processed,
-			c.processing,
-			c.processed_on,
-			c.max_processing_attempts,
-			c.attempts
-		FROM cpu_usage_events c
-		JOIN users u ON c.created_by = u.id
-		JOIN cpu_usage_event_types e ON c.event_type_id = e.id
-		WHERE NOT c.claimed
-		AND NOT c.processed
-		AND NOT c.processing
-		AND c.attempts < c.max_processing_attempts
-		AND CURRENT_TIMESTAMP >= COALESCE(c.claim_expires_on, to_timestamp(0));
+			id,
+			name,
+			added_on,
+			active,
+			activation_expires_on,
+			deactivated_on,
+			activated_on,
+			getting_work,
+			getting_work_on,
+			getting_work_expires_on,
+			working,
+			working_on,
+			last_modified
+		FROM cpu_usage_workers;
 	`
 
 	rows, err := d.db.QueryxContext(context, q)
@@ -70,54 +48,81 @@ func (d *Database) UnclaimedUnprocessedEvents(context context.Context) ([]CPUUsa
 	}
 
 	for rows.Next() {
-		var h CPUUsageWorkItem
-		err = rows.StructScan(&h)
-		if err != nil {
+		var worker Worker
+		if err = rows.StructScan(&worker); err != nil {
 			return nil, err
 		}
-		workItems = append(workItems, h)
+		workers = append(workers, worker)
 	}
 
 	if err = rows.Err(); err != nil {
-		return workItems, err
+		return workers, err
 	}
 
-	return workItems, nil
+	return workers, nil
 }
 
-// ClaimEvent marks an CPU usage event in the database as claimed for work by the entity
-// represented by the claimedBy string.
-func (d *Database) ClaimEvent(context context.Context, id, claimedBy string) error {
+func (d *Database) Worker(context context.Context, id string) (*Worker, error) {
+	var worker Worker
 	const q = `
-		UPDATE cpu_usage_events
-		SET claimed = true,
-			claimed_by = $2
+			SELECT 
+			id,
+			name,
+			added_on,
+			active,
+			activation_expires_on,
+			deactivated_on,
+			activated_on,
+			getting_work,
+			getting_work_on,
+			getting_work_expires_on,
+			working,
+			working_on,
+			last_modified
+		FROM cpu_usage_workers
+		WHERE id = $1;`
+	err := d.db.QueryRowxContext(context, q, id).StructScan(&worker)
+	return &worker, err
+}
+
+func (d *Database) UpdateWorker(context context.Context, worker *Worker) error {
+	const q = `
+		UPDATE cpu_usage_workers
+		SET name = $2,
+			added_on = $3,
+			active = $4,
+			activation_expires_on = $5,
+			deactivated_on = $6,
+			activated_on = $7,
+			getting_work = $8,
+			getting_work_on = $9,
+			getting_work_expires_on = $10,
+			working = $11,
+			working_on =$12
 		WHERE id = $1;
 	`
-	_, err := d.db.ExecContext(context, q, id, claimedBy)
+	_, err := d.db.ExecContext(
+		context,
+		q,
+		worker.ID,
+		worker.Name,
+		worker.AddedOn,
+		worker.Active,
+		worker.ActivationExpiresOn,
+		worker.DeactivatedOn,
+		worker.ActivatedOn,
+		worker.GettingWork,
+		worker.GettingWorkOn,
+		worker.GettingWorkExpiresOn,
+		worker.Working,
+		worker.WorkingOn,
+	)
 	return err
 }
 
-// ProcessingEvent marks as CPU usage event as being processed. It's not complete yet, but
-// it's in progress.
-func (d *Database) ProcessingEvent(context context.Context, id string) error {
+func (d *Database) DeleteWorker(context context.Context, id string) error {
 	const q = `
-		UPDATE cpu_usage_events
-		SET processing = true,
-			attempts = attempts + 1
-		WHERE id = $1;
-	`
-	_, err := d.db.ExecContext(context, q, id)
-	return err
-}
-
-// FinishedProcessingEvent marks an event as processed.
-func (d *Database) FinishedProcessingEvent(context context.Context, id string) error {
-	const q = `
-		UPDATE cpu_usage_events
-		SET processing = false,
-			processed = true
-		WHERE id = $1;
+		DELETE cpu_usage_workers WHERE id = $1;
 	`
 	_, err := d.db.ExecContext(context, q, id)
 	return err
