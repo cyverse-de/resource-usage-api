@@ -8,8 +8,9 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
+
+	"github.com/guregu/null"
 )
 
 type CPUUsageEvent struct {
@@ -25,13 +26,13 @@ type CPUUsageEvent struct {
 type CPUUsageWorkItem struct {
 	CPUUsageEvent
 	Claimed               bool
-	ClaimedBy             sql.NullString `db:"claimed_by" json:"claimed_by"`
-	ClaimExpiresOn        sql.NullTime   `db:"claim_expires_on" json:"claim_expires_on"`
-	ClaimedOn             sql.NullTime   `db:"claimed_on" json:"claimed_on"`
+	ClaimedBy             null.String `db:"claimed_by" json:"claimed_by"`
+	ClaimExpiresOn        null.Time   `db:"claim_expires_on" json:"claim_expires_on"`
+	ClaimedOn             null.Time   `db:"claimed_on" json:"claimed_on"`
 	Processed             bool
 	Processing            bool
-	ProcessedOn           sql.NullTime `db:"processed_on" json:"processed_on"`
-	MaxProcessingAttempts int          `db:"max_processing_attempts" json:"max_processing_attempts"`
+	ProcessedOn           null.Time `db:"processed_on" json:"processed_on"`
+	MaxProcessingAttempts int       `db:"max_processing_attempts" json:"max_processing_attempts"`
 	Attempts              int
 }
 

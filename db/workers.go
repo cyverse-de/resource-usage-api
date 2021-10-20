@@ -2,24 +2,25 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"time"
+
+	"github.com/guregu/null"
 )
 
 type Worker struct {
-	ID                   string       `db:"id" json:"id"`
-	Name                 string       `db:"name" json:"name"`
-	AddedOn              string       `db:"added_on" json:"added_on"`
-	Active               bool         `db:"active" json:"active"`
-	ActivationExpiresOn  sql.NullTime `db:"activation_expires_on" json:"activation_expires_on"`
-	DeactivatedOn        sql.NullTime `db:"deactivated_on" json:"deactivated_on"`
-	ActivatedOn          sql.NullTime `db:"activated_on" json:"activated_on"`
-	GettingWork          bool         `db:"getting_work" json:"getting_work"`
-	GettingWorkOn        sql.NullTime `db:"getting_work_on" json:"getting_work_on"`
-	GettingWorkExpiresOn sql.NullTime `db:"getting_work_expires_on" json:"getting_work_expires_on"`
-	Working              bool         `db:"working" json:"working"`
-	WorkingOn            sql.NullTime `db:"working_on" json:"working_on"`
-	LastModified         time.Time    `db:"last_modified" json:"last_modified"`
+	ID                   string    `db:"id" json:"id"`
+	Name                 string    `db:"name" json:"name"`
+	AddedOn              string    `db:"added_on" json:"added_on"`
+	Active               bool      `db:"active" json:"active"`
+	ActivationExpiresOn  null.Time `db:"activation_expires_on" json:"activation_expires_on"`
+	DeactivatedOn        null.Time `db:"deactivated_on" json:"deactivated_on"`
+	ActivatedOn          null.Time `db:"activated_on" json:"activated_on"`
+	GettingWork          bool      `db:"getting_work" json:"getting_work"`
+	GettingWorkOn        null.Time `db:"getting_work_on" json:"getting_work_on"`
+	GettingWorkExpiresOn null.Time `db:"getting_work_expires_on" json:"getting_work_expires_on"`
+	Working              bool      `db:"working" json:"working"`
+	WorkingOn            null.Time `db:"working_on" json:"working_on"`
+	LastModified         time.Time `db:"last_modified" json:"last_modified"`
 }
 
 func (d *Database) ListWorkers(context context.Context) ([]Worker, error) {

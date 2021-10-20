@@ -2,14 +2,15 @@ package db
 
 import (
 	"context"
-	"database/sql"
+
+	"github.com/guregu/null"
 )
 
 type Analysis struct {
 	ID         string
 	AppID      string
-	StartDate  sql.NullTime
-	EndDate    sql.NullTime
+	StartDate  null.Time
+	EndDate    null.Time
 	Status     string
 	Deleted    bool
 	Submission string

@@ -6,6 +6,7 @@ require (
 	github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9
 	github.com/go-co-op/gocron v1.9.0
 	github.com/google/uuid v1.3.0
+	github.com/guregu/null v4.0.0+incompatible
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/labstack/echo/v4 v4.6.0
 	github.com/lib/pq v1.10.3
