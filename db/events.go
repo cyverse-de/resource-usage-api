@@ -25,15 +25,15 @@ type CPUUsageEvent struct {
 
 type CPUUsageWorkItem struct {
 	CPUUsageEvent
-	Claimed               bool
+	Claimed               bool        `db:"claimed" json:"claimed"`
 	ClaimedBy             null.String `db:"claimed_by" json:"claimed_by"`
 	ClaimExpiresOn        null.Time   `db:"claim_expires_on" json:"claim_expires_on"`
 	ClaimedOn             null.Time   `db:"claimed_on" json:"claimed_on"`
-	Processed             bool
-	Processing            bool
-	ProcessedOn           null.Time `db:"processed_on" json:"processed_on"`
-	MaxProcessingAttempts int       `db:"max_processing_attempts" json:"max_processing_attempts"`
-	Attempts              int
+	Processed             bool        `db:"processed" json:"processed"`
+	Processing            bool        `db:"processing" json:"processing"`
+	ProcessedOn           null.Time   `db:"processed_on" json:"processed_on"`
+	MaxProcessingAttempts int         `db:"max_processing_attempts" json:"max_processing_attempts"`
+	Attempts              int         `db:"attempts" json:"attempts"`
 }
 
 // AddCPUUsageEvent adds a new usage event to the database with the default values for
@@ -289,8 +289,11 @@ func (d *Database) UpdateEvent(context context.Context, workItem *CPUUsageWorkIt
 			claimed_by = $8,
 			claimed_on = $9,
 			claim_expires_on = $10,
-			max_processing_attempts = $11,
-			attempts = $12
+			processed = $11,
+			processing = $12,
+			processed_on = $13,
+			max_processing_attempts = $14,
+			attempts = $15
 		WHERE id = $1;
 	`
 
@@ -307,6 +310,9 @@ func (d *Database) UpdateEvent(context context.Context, workItem *CPUUsageWorkIt
 		workItem.ClaimedBy,
 		workItem.ClaimedOn,
 		workItem.ClaimExpiresOn,
+		workItem.Processed,
+		workItem.Processing,
+		workItem.ProcessedOn,
 		workItem.MaxProcessingAttempts,
 		workItem.Attempts,
 	)

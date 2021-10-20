@@ -123,7 +123,7 @@ func (d *Database) UpdateWorker(context context.Context, worker *Worker) error {
 
 func (d *Database) DeleteWorker(context context.Context, id string) error {
 	const q = `
-		DELETE cpu_usage_workers WHERE id = $1;
+		DELETE FROM cpu_usage_workers WHERE id = $1;
 	`
 	_, err := d.db.ExecContext(context, q, id)
 	return err

@@ -52,6 +52,7 @@ func (a *App) Router() *echo.Echo {
 	admin := a.router.Group("/admin")
 
 	workers := admin.Group("/workers")
+	workers.GET("", a.AdminListWorkersHandler)
 	workers.GET("/", a.AdminListWorkersHandler)
 	workers.GET("/:id", a.AdminGetWorkerHandler)
 	workers.POST("/:id", a.AdminUpdateWorkerHandler)
@@ -62,6 +63,7 @@ func (a *App) Router() *echo.Echo {
 	cpuadmin.GET("/totals/all", a.AdminAllCPUHoursTotalsHandler)
 
 	events := cpuadmin.Group("/events")
+	events.GET("", a.AdminListEvents)
 	events.GET("/", a.AdminListEvents)
 	events.GET("/user/:username", a.AdminListAllUserEventsHandler)
 	events.GET("/:id", a.AdminGetEventHandler)
