@@ -125,13 +125,25 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 }
 
 func (a *App) AddToTotalHandler(c echo.Context) error {
-	return a.totalHandler(c, db.CPUHoursAdd)
+	err := a.totalHandler(c, db.CPUHoursAdd)
+	if err != nil {
+		log.Error(err)
+	}
+	return err
 }
 
 func (a *App) SubtractFromTotalHandler(c echo.Context) error {
-	return a.totalHandler(c, db.CPUHoursSubtract)
+	err := a.totalHandler(c, db.CPUHoursSubtract)
+	if err != nil {
+		log.Error(err)
+	}
+	return err
 }
 
 func (a *App) ResetTotalHandler(c echo.Context) error {
-	return a.totalHandler(c, db.CPUHoursReset)
+	err := a.totalHandler(c, db.CPUHoursReset)
+	if err != nil {
+		log.Error(err)
+	}
+	return err
 }

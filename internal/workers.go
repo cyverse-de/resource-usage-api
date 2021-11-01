@@ -19,6 +19,7 @@ func (a *App) AdminListWorkersHandler(c echo.Context) error {
 	if err == sql.ErrNoRows || len(results) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no workers"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, results)
@@ -37,6 +38,7 @@ func (a *App) AdminGetWorkerHandler(c echo.Context) error {
 	if err == sql.ErrNoRows {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Errorf("no worker %s found", id))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -53,23 +55,27 @@ func (a *App) AdminUpdateWorkerHandler(c echo.Context) error {
 
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	var worker db.Worker
 	if err = json.Unmarshal(body, &worker); err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
 	if worker.ID == "" {
 		worker.ID = id
 	} else if worker.ID != id {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("worker IDs %s and %s do not match", worker.ID, id))
 	}
 
 	d := db.New(a.database)
 	err = d.UpdateWorker(context, &worker)
 	if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -89,6 +95,7 @@ func (a *App) AdminDeleteWorkerHandler(c echo.Context) error {
 	if err == sql.ErrNoRows {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Errorf("no worker %s found", id))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 

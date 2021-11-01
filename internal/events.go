@@ -19,6 +19,7 @@ func (a *App) AdminListEvents(c echo.Context) error {
 	if err == sql.ErrNoRows || len(results) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no events found"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 	return c.JSON(http.StatusOK, results)
@@ -38,6 +39,7 @@ func (a *App) AdminListAllUserEventsHandler(c echo.Context) error {
 	if err == sql.ErrNoRows || len(results) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no events found"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -57,6 +59,7 @@ func (a *App) AdminGetEventHandler(c echo.Context) error {
 	if err == sql.ErrNoRows {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("event not found"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -73,6 +76,7 @@ func (a *App) AdminUpdateEventHandler(c echo.Context) error {
 
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -84,12 +88,14 @@ func (a *App) AdminUpdateEventHandler(c echo.Context) error {
 	if workItem.ID == "" {
 		workItem.ID = id
 	} else if workItem.ID != id {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Errorf("work item IDs %s and %s do not match", workItem.ID, id))
 	}
 
 	d := db.New(a.database)
 	err = d.UpdateEvent(context, &workItem)
 	if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -109,6 +115,7 @@ func (a *App) AdminDeleteEventHandler(c echo.Context) error {
 	if err == sql.ErrNoRows {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Errorf("no event %s found", id))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 

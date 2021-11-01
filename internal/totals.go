@@ -31,6 +31,7 @@ func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
 	if err == sql.ErrNoRows {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no current CPU hours found for user"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -52,6 +53,7 @@ func (a *App) AllCPUHoursHandler(c echo.Context) error {
 	if err == sql.ErrNoRows || len(results) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no CPU hours found for user"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
@@ -71,6 +73,7 @@ func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
 	if err == sql.ErrNoRows || len(results) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no current CPU hours found"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
@@ -86,6 +89,7 @@ func (a *App) AdminAllCPUHoursTotalsHandler(c echo.Context) error {
 	if err == sql.ErrNoRows || len(results) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no CPU hours found"))
 	} else if err != nil {
+		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 
