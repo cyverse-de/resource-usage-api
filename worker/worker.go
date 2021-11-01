@@ -20,6 +20,7 @@ var log = logging.Log.WithFields(
 
 type Worker struct {
 	ID                   string
+	Name                 string
 	Scheduler            *gocron.Scheduler
 	db                   *sqlx.DB // needs to be a *sqlx.DB so we can create tranasactions on it.
 	ClaimLifetime        time.Duration
@@ -47,6 +48,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 
 	worker := Worker{
 		ClaimLifetime:        config.ClaimLifetime,
+		Name:                 config.Name,
 		db:                   dbAccessor,
 		WorkSeekingLifetime:  config.WorkSeekingLifetime,
 		NewUserTotalInterval: config.NewUserTotalInterval,
@@ -54,7 +56,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 
 	database = db.New(worker.db)
 
-	worker.ID, err = database.RegisterWorker(context, config.Name, time.Now().Add(config.ExpirationInterval))
+	worker.ID, err = database.RegisterWorker(context, worker.Name, time.Now().Add(config.ExpirationInterval))
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +67,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 		log := log.WithFields(logrus.Fields{"context": "refreshing worker registration"})
 		log.Info("start refreshing worker registrations")
 
-		newTime, err := database.RefreshWorkerRegistration(context, worker.ID, config.ExpirationInterval)
+		newTime, err := database.RefreshWorkerRegistration(context, worker.ID, worker.Name, config.ExpirationInterval)
 		if err != nil {
 			log.Error(err)
 			return

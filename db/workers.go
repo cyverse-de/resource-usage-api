@@ -160,14 +160,17 @@ func (d *Database) UnregisterWorker(context context.Context, workerID string) er
 }
 
 // RefreshWorkerRegistration updates the workers activation expiration date.
-func (d *Database) RefreshWorkerRegistration(context context.Context, workerID string, expirationInterval time.Duration) (*time.Time, error) {
+func (d *Database) RefreshWorkerRegistration(context context.Context, workerID, workerName string, expirationInterval time.Duration) (*time.Time, error) {
 	const q = `
-		UPDATE cpu_usage_workers
-		SET activation_expires_on = $2
-		WHERE id = $1;
+		INSERT INTO cpu_usage_workers
+			(id, name, activation_expires_on)
+		VALUES
+			($1, $3, $2)
+		ON CONFLICT (id) DO UPDATE 
+		SET activation_expires_on = $2;
 	`
 	newTime := time.Now().Add(expirationInterval)
-	_, err := d.db.ExecContext(context, q, workerID, newTime)
+	_, err := d.db.ExecContext(context, q, workerID, newTime, workerName)
 	return &newTime, err
 }
 
@@ -177,9 +180,7 @@ func (d *Database) RefreshWorkerRegistration(context context.Context, workerID s
 // activation timestamp has passed.
 func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
 	const q = `
-		UPDATE cpu_usage_workers
-		SET active = false,
-			activation_expires_on = NULL
+		DELETE FROM cpu_usage_workers
 		WHERE active
 		AND NOT getting_work
 		AND NOT working
@@ -196,10 +197,7 @@ func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
 // the queue too long. Returns the number of rows affected.
 func (d *Database) PurgeExpiredWorkSeekers(context context.Context) (int64, error) {
 	const q = `
-		UPDATE cpu_usage_workers
-		SET getting_work = false,
-			getting_work_on = NULL,
-			getting_work_expires_on = NULL
+		DELETE FROM cpu_usage_workers
 		WHERE active
 		AND getting_work
 		AND NOT working
