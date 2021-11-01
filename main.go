@@ -92,7 +92,7 @@ func main() {
 		listenPort = flag.Int("port", 60000, "The port the service listens on for requests")
 		//queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
 		//reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
-		logLevel                 = flag.String("log-level", "warn", "One of trace, debug, info, warn, error, fatal, or panic.")
+		logLevel                 = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
 		workerLifetimeFlag       = flag.String("worker-lifetime", "1h", "The lifetime of a worker. Must parse as a time.Duration.")
 		claimLifetimeFlag        = flag.String("claim-lifetime", "2m", "The lifetime of a work claim. Must parse as a time.Duration.")
 		seekingLifetimeFlag      = flag.String("seeking-lifetime", "2m", "The amount of time a worker may spend looking for a work item to process. Must parse as a time.Duration.")
