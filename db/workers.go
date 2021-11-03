@@ -201,10 +201,13 @@ func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
 func (d *Database) PurgeExpiredWorkSeekers(context context.Context) (int64, error) {
 	const q = `
 		DELETE FROM cpu_usage_workers
-		WHERE active
-		AND getting_work
+		WHERE getting_work
 		AND NOT working
-		AND CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0));
+		AND ( 
+			CURRENT_TIMESTAMP >= COALESCE(getting_work_expires_on, to_timestamp(0))
+			OR
+			getting_work_expires_on = NULL	
+		);
 	`
 
 	result, err := d.db.ExecContext(context, q)
@@ -225,7 +228,11 @@ func (d *Database) PurgeExpiredWorkClaims(context context.Context) (int64, error
 		WHERE claimed = true
 		AND processing = false
 		AND processed = false
-		AND CURRENT_TIMESTAMP >= COALESCE(claim_expires_on, to_timestamp(0));
+		AND ( 
+			CURRENT_TIMESTAMP >= COALESCE(claim_expires_on, to_timestamp(0))
+			OR
+			claim_expires_on = NULL
+		);
 	`
 	result, err := d.db.ExecContext(context, q)
 	if err != nil {
