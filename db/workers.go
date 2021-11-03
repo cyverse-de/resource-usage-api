@@ -180,11 +180,14 @@ func (d *Database) RefreshWorkerRegistration(context context.Context, workerID, 
 // activation timestamp has passed.
 func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
 	const q = `
-		DELETE FROM cpu_usage_workers
-		WHERE active
-		AND NOT getting_work
-		AND NOT working
-		AND CURRENT_TIMESTAMP >= COALESCE(activation_expires_on, to_timestamp(0));
+		DELETE FROM cpu_usage_workers 
+		WHERE NOT getting_work 
+		AND NOT working 
+		AND ( 
+			CURRENT_TIMESTAMP >= COALESCE(activation_expires_on, to_timestamp(0)) 
+			OR 
+			activation_expires_on = NULL 
+		);
 	`
 	result, err := d.db.ExecContext(context, q)
 	if err != nil {
