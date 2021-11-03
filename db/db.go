@@ -123,6 +123,8 @@ func (d *Database) AllCPUHoursForUser(context context.Context, username string) 
 		SELECT
 			t.id,
 			t.total,
+			t.user_id,
+			u.username,
 			lower(t.effective_range) effective_start,
 			upper(t.effective_range) effective_end,
 			t.last_modified
