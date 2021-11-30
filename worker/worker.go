@@ -63,7 +63,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 
 	worker.Scheduler = gocron.NewScheduler(time.UTC)
 
-	worker.Scheduler.Every(config.RefreshInterval).Do(func() {
+	worker.Scheduler.Every(config.RefreshInterval).Do(func() { // nolint:errcheck
 		log := log.WithFields(logrus.Fields{"context": "refreshing worker registration"})
 		log.Info("start refreshing worker registrations")
 
@@ -75,7 +75,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 		log.Infof("new expiration time is %s", newTime.String())
 	})
 
-	worker.Scheduler.Every(config.WorkerPurgeInterval).Do(func() {
+	worker.Scheduler.Every(config.WorkerPurgeInterval).Do(func() { // nolint:errcheck
 		log := log.WithFields(logrus.Fields{"context": "purging expired workers"})
 		log.Info("start purging expired workers")
 
@@ -95,7 +95,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 		log.Infof("reset %d work claims", resetClaims)
 	})
 
-	worker.Scheduler.Every(config.WorkSeekerPurgeInterval).Do(func() {
+	worker.Scheduler.Every(config.WorkSeekerPurgeInterval).Do(func() { // nolint:errcheck
 		log := log.WithFields(logrus.Fields{"context": "purging expired work seekers"})
 		log.Info("start purging expired work seekers")
 
@@ -107,7 +107,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 		log.Infof("purged %d expired workers", numExpiredWorkers)
 	})
 
-	worker.Scheduler.Every(config.WorkClaimPurgeInterval).Do(func() {
+	worker.Scheduler.Every(config.WorkClaimPurgeInterval).Do(func() { // nolint:errcheck
 		log := log.WithFields(logrus.Fields{"context": "purging expired work claims"})
 		log.Info("start purging expired work claims")
 
