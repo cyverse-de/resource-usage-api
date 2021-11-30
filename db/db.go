@@ -9,7 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var log = logging.Log
+var log = logging.Log // nolint
 
 type CPUHours struct {
 	ID             string    `db:"id" json:"id"`
