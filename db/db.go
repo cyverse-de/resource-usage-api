@@ -15,7 +15,7 @@ type CPUHours struct {
 	ID             string    `db:"id" json:"id"`
 	UserID         string    `db:"user_id" json:"user_id"`
 	Username       string    `db:"username" json:"username"`
-	Total          int64     `db:"total" json:"total"`
+	Total          float64   `db:"total" json:"total"`
 	EffectiveStart time.Time `db:"effective_start" json:"effective_start"`
 	EffectiveEnd   time.Time `db:"effective_end" json:"effective_end"`
 	LastModified   time.Time `db:"last_modified" json:"last_modified"`

@@ -10,17 +10,17 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type totalUpdaterFn func(int64, *db.CPUUsageWorkItem) int64
+type totalUpdaterFn func(float64, *db.CPUUsageWorkItem) float64
 
-func totalAdder(curr int64, workItem *db.CPUUsageWorkItem) int64 {
+func totalAdder(curr float64, workItem *db.CPUUsageWorkItem) float64 {
 	return curr + workItem.Value
 }
 
-func totalSubtracter(curr int64, workItem *db.CPUUsageWorkItem) int64 {
+func totalSubtracter(curr float64, workItem *db.CPUUsageWorkItem) float64 {
 	return curr - workItem.Value
 }
 
-func totalReplacer(_ int64, workItem *db.CPUUsageWorkItem) int64 {
+func totalReplacer(_ float64, workItem *db.CPUUsageWorkItem) float64 {
 	return workItem.Value
 }
 
@@ -87,7 +87,7 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 		err        error
 		user       string
 		valueParam string
-		value      int64
+		value      float64
 	)
 	context := c.Request().Context()
 
@@ -108,7 +108,7 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 	if valueParam == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "value was not set")
 	}
-	value, err = strconv.ParseInt(valueParam, 10, 64)
+	value, err = strconv.ParseFloat(valueParam, 64)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "value must be parsable as a 64-bit integer")
 	}
