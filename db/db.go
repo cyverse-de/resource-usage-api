@@ -245,3 +245,14 @@ func (d *Database) UpdateCPUHoursTotal(context context.Context, totalObj *CPUHou
 	)
 	return err
 }
+
+func (d *Database) MillicoresReserved(context context.Context, analysisID string) (float64, error) {
+	const q = `
+		SELECT millicores_reserved
+		FROM jobs
+		WhERE id = $1;
+	`
+	var millicores int64
+	err := d.db.QueryRowxContext(context, q, analysisID).Scan(&millicores)
+	return float64(millicores), err
+}
