@@ -28,17 +28,30 @@ type AMQP struct {
 }
 
 func New(config *Configuration, handler HandlerFn) (*AMQP, error) {
+	log.Debug("creating a new AMQP client")
 	client, err := messaging.NewClient(config.URI, config.Reconnect)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("done creating a new AMQP client")
 
 	a := &AMQP{
 		client:  client,
 		handler: handler,
 	}
 
-	client.AddConsumer(config.Exchange, config.ExchangeType, config.Queue, messaging.UpdatesKey, a.recv, config.PrefetchCount)
+	go a.client.Listen()
+
+	log.Debug("adding a consumer")
+	client.AddConsumer(
+		config.Exchange,
+		config.ExchangeType,
+		config.Queue,
+		messaging.UpdatesKey,
+		a.recv,
+		config.PrefetchCount,
+	)
+	log.Debug("done adding a consumer")
 
 	return a, err
 }

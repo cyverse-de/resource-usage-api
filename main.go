@@ -159,10 +159,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	go amqpClient.Listen()
 	defer amqpClient.Close()
+	log.Debug("after close")
+
+	log.Info("done connecting to the AMQP broker")
 
 	dbconn = sqlx.MustConnect("postgres", dbURI)
+
+	log.Info("done connecting to the database")
 
 	app := internal.New(dbconn, userSuffix)
 
