@@ -147,6 +147,9 @@ func main() {
 		log.Fatal(err)
 	}
 
+	dbconn = sqlx.MustConnect("postgres", dbURI)
+	log.Info("done connecting to the database")
+
 	amqpConfig := amqp.Configuration{
 		URI:          amqpURI,
 		Exchange:     amqpExchange,
@@ -163,10 +166,6 @@ func main() {
 	log.Debug("after close")
 
 	log.Info("done connecting to the AMQP broker")
-
-	dbconn = sqlx.MustConnect("postgres", dbURI)
-
-	log.Info("done connecting to the database")
 
 	app := internal.New(dbconn, userSuffix)
 
