@@ -84,6 +84,9 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 		return
 	}
 
+	log.Debugf("UUID is %s", update.Job.UUID)
+	log.Debugf("%+v", update)
+
 	log.Infof("%s is the body", string(delivery.Body))
 
 	if update.State == "" {
