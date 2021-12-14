@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"github.com/cyverse-de/configurate"
+	"github.com/cyverse-de/resource-usage-api/amqp"
+	"github.com/cyverse-de/resource-usage-api/cpuhours"
+	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/internal"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/cyverse-de/resource-usage-api/worker"
@@ -17,68 +20,34 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
+	"gopkg.in/cyverse-de/messaging.v6"
 
 	_ "github.com/lib/pq"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
-//func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
-//	dedb := db.New(dbClient)
-//
-//	return func(userID, externalID, state string) {
-//		event := db.CPUUsageEvent{
-//			CreatedBy: userID,
-//		}
-//
-//		// Set up a context with a deadline of 2 minutes. This should prevent a backlog of go routines
-//		// from building up.
-//		ctx, cancelFn := context.WithDeadline(context.Background(), time.Now().Add(time.Minute*2))
-//		defer cancelFn()
-//
-//		// Look up the analysis ID from the externalID.
-//		analysisID, err := dedb.GetAnalysisIDByExternalID(ctx, externalID)
-//		if err != nil {
-//			log.Error(err)
-//			return
-//		}
-//
-//		// Get the start date of the analysis.
-//		analysis, err := dedb.Analysis(ctx, userID, analysisID)
-//		if err != nil {
-//			log.Error(err)
-//			return
-//		}
-//
-//		if !analysis.StartDate.Valid {
-//			log.Errorf("analysis %s: start date was null", analysis.ID)
-//		}
-//		startDate := analysis.StartDate.Time
-//
-//		// Get the current date. Can't really depend on the sent_on field.
-//		nowTime := time.Now()
-//
-//		// Calculate the number of hours betwen the start date and the current date.
-//		hours := nowTime.Sub(startDate).Hours()
-//
-//		// Get the number of millicores requested for the analysis.
-//		// TODO: figure out the right way to handle default values. Default to 1.0 for now.
-//		millicores := 1000.0
-//
-//		// Multiply the number of hours by the number of millicores.
-//		// Divide the result by 1000 to get the number of CPU hours. 1000 millicores = 1 CPU core.
-//		cpuHours := (millicores * hours) / 1000.0
-//
-//		// Add the event to the database.
-//		event.EffectiveDate = nowTime
-//		event.RecordDate = nowTime
-//		event.Value = int64(cpuHours)
-//
-//		if err = dedb.AddCPUUsageEvent(ctx, &event); err != nil {
-//			log.Error(err)
-//		}
-//	}
-//}
+func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
+	dedb := db.New(dbClient)
+	cpuhours := cpuhours.New(dedb)
+
+	return func(externalID string, state messaging.JobState) {
+		var err error
+		context := context.Background()
+
+		log = log.WithFields(logrus.Fields{"externalID": externalID})
+
+		if state == messaging.FailedState || state == messaging.SucceededState {
+			log.Debug("calculating CPU hours for analysis")
+			if err = cpuhours.CalculateForAnalysis(context, externalID); err != nil {
+				log.Error(err)
+			}
+			log.Debug("done calculating CPU hours for analysis")
+		} else {
+			log.Debugf("received status is %s, ignoring", state)
+		}
+	}
+}
 
 func main() {
 	var (
@@ -86,10 +55,10 @@ func main() {
 		config *viper.Viper
 		dbconn *sqlx.DB
 
-		configPath = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
-		listenPort = flag.Int("port", 60000, "The port the service listens on for requests")
-		//queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
-		//reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
+		configPath               = flag.String("config", "/etc/iplant/de/jobservices.yml", "Full path to the configuration file")
+		listenPort               = flag.Int("port", 60000, "The port the service listens on for requests")
+		queue                    = flag.String("queue", "resource-usage-api", "The AMQP queue name for this service")
+		reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel                 = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
 		workerLifetimeFlag       = flag.String("worker-lifetime", "1h", "The lifetime of a worker. Must parse as a time.Duration.")
 		claimLifetimeFlag        = flag.String("claim-lifetime", "2m", "The lifetime of a work claim. Must parse as a time.Duration.")
@@ -178,22 +147,26 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// amqpConfig := amqp.Configuration{
-	// 	URI:          amqpURI,
-	// 	Exchange:     amqpExchange,
-	// 	ExchangeType: amqpExchangeType,
-	// 	Reconnect:    *reconnect,
-	// 	Queue:        *queue,
-	// }
+	amqpConfig := amqp.Configuration{
+		URI:          amqpURI,
+		Exchange:     amqpExchange,
+		ExchangeType: amqpExchangeType,
+		Reconnect:    *reconnect,
+		Queue:        *queue,
+	}
 
-	// amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// go amqpClient.Listen()
-	// defer amqpClient.Close()
+	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer amqpClient.Close()
+	log.Debug("after close")
+
+	log.Info("done connecting to the AMQP broker")
 
 	dbconn = sqlx.MustConnect("postgres", dbURI)
+
+	log.Info("done connecting to the database")
 
 	app := internal.New(dbconn, userSuffix)
 

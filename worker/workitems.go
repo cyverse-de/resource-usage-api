@@ -11,7 +11,7 @@ import (
 	"go.uber.org/multierr"
 )
 
-type totalUpdater func(int64, int64) int64
+type totalUpdater func(float64, float64) float64
 
 func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry, workItem *db.CPUUsageWorkItem, updateFn totalUpdater) error {
 	tx, err := w.db.Beginx()
@@ -76,7 +76,7 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 
 	// modify it with the value stored in the work item.
 	cpuhours.Total = updateFn(cpuhours.Total, workItem.Value)
-	log.Infof("new total for user %s is %d based on a work item value of %d", username, cpuhours.Total, workItem.Value)
+	log.Infof("new total for user %s is %f based on a work item value of %f", username, cpuhours.Total, workItem.Value)
 
 	// set the new current value.
 	if err = txdb.UpdateCPUHoursTotal(context, cpuhours); err != nil {
@@ -97,28 +97,28 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 		return err
 	}
 
-	log.Infof("committing transaction for updating the total to %d for user %s", cpuhours.Total, username)
+	log.Infof("committing transaction for updating the total to %f for user %s", cpuhours.Total, username)
 
 	return nil
 }
 
 func (w *Worker) AddCPUHours(context context.Context, workItem *db.CPUUsageWorkItem) error {
 	log := logging.Log.WithFields(logrus.Fields{"context": "adding CPU hours"})
-	return w.updateCPUHoursTotal(context, log, workItem, func(current int64, add int64) int64 {
+	return w.updateCPUHoursTotal(context, log, workItem, func(current float64, add float64) float64 {
 		return current + add
 	})
 }
 
 func (w *Worker) SubtractCPUHours(context context.Context, workItem *db.CPUUsageWorkItem) error {
 	log := logging.Log.WithFields(logrus.Fields{"context": "subtracting CPU hours"})
-	return w.updateCPUHoursTotal(context, log, workItem, func(current int64, subtract int64) int64 {
+	return w.updateCPUHoursTotal(context, log, workItem, func(current float64, subtract float64) float64 {
 		return current - subtract
 	})
 }
 
 func (w *Worker) ResetCPUHours(context context.Context, workItem *db.CPUUsageWorkItem) error {
 	log := logging.Log.WithFields(logrus.Fields{"context": "resetting CPU hours"})
-	return w.updateCPUHoursTotal(context, log, workItem, func(_ int64, newValue int64) int64 {
+	return w.updateCPUHoursTotal(context, log, workItem, func(_ float64, newValue float64) float64 {
 		return newValue
 	})
 }

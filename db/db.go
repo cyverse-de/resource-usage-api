@@ -15,7 +15,7 @@ type CPUHours struct {
 	ID             string    `db:"id" json:"id"`
 	UserID         string    `db:"user_id" json:"user_id"`
 	Username       string    `db:"username" json:"username"`
-	Total          int64     `db:"total" json:"total"`
+	Total          float64   `db:"total" json:"total"`
 	EffectiveStart time.Time `db:"effective_start" json:"effective_start"`
 	EffectiveEnd   time.Time `db:"effective_end" json:"effective_end"`
 	LastModified   time.Time `db:"last_modified" json:"last_modified"`
@@ -244,4 +244,15 @@ func (d *Database) UpdateCPUHoursTotal(context context.Context, totalObj *CPUHou
 		totalObj.Total,
 	)
 	return err
+}
+
+func (d *Database) MillicoresReserved(context context.Context, analysisID string) (float64, error) {
+	const q = `
+		SELECT millicores_reserved
+		FROM jobs
+		WhERE id = $1;
+	`
+	var millicores int64
+	err := d.db.QueryRowxContext(context, q, analysisID).Scan(&millicores)
+	return float64(millicores), err
 }
