@@ -73,9 +73,11 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 
 	if update.State == "" {
 		log.Error("state was unset, dropping message")
+		return
 	}
 	if update.Job.InvocationID == "" {
 		log.Error("invocation/external ID was unset, dropping message")
+		return
 	}
 
 	a.handler(update.Job.InvocationID, update.State)
