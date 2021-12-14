@@ -20,6 +20,19 @@ type Configuration struct {
 	PrefetchCount int
 }
 
+type analysisUpdateJob struct {
+	UUID     string `json:"uuid"`
+	CondorID string `json:"condor_id"` // not actually used for anything...yet.
+}
+
+type analysisUpdateMsg struct {
+	Job     analysisUpdateJob  `json:"Job"`
+	State   messaging.JobState `json:"State"`
+	Message string             `json:"Message"`
+	SentOn  string             `json:"SentOn"`
+	Sender  string             `json:"Sender"`
+}
+
 type HandlerFn func(externalID string, state messaging.JobState)
 
 type AMQP struct {
@@ -58,7 +71,7 @@ func New(config *Configuration, handler HandlerFn) (*AMQP, error) {
 
 func (a *AMQP) recv(delivery amqp.Delivery) {
 	var (
-		update messaging.UpdateMessage
+		update analysisUpdateMsg
 		err    error
 	)
 
@@ -77,12 +90,12 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 		log.Error("state was unset, dropping message")
 		return
 	}
-	if update.Job.InvocationID == "" {
-		log.Error("invocation/external ID was unset, dropping message")
+	if update.Job.UUID == "" {
+		log.Error("external ID was unset, dropping message")
 		return
 	}
 
-	a.handler(update.Job.InvocationID, update.State)
+	a.handler(update.Job.UUID, update.State)
 }
 
 func (a *AMQP) Listen() {
