@@ -50,6 +50,9 @@ spec:
           limits:
             cpu: "100m"
             memory: "256Mi"
+        args:
+          - --log-level
+          - debug
         ports:
           - name: listen-port
             containerPort: 60000
