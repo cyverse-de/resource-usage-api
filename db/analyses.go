@@ -17,6 +17,7 @@ type Analysis struct {
 	UserID     string    `db:"user_id"`
 	JobType    string    `db:"job_type"`
 	SystemID   string    `db:"system_id"`
+	Subdomain  string    `db:"subdomain"`
 }
 
 // GetAnalysisIDByExternalID returns the analysis ID based on the external ID
