@@ -71,6 +71,8 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 		return
 	}
 
+	log.Infof("%s is the body", string(delivery.Body))
+
 	if update.State == "" {
 		log.Error("state was unset, dropping message")
 		return
