@@ -51,7 +51,7 @@ func (d *Database) AnalysisWithoutUser(context context.Context, analysisID strin
 			t.name job_type,
 			t.system_id
 		FROM jobs j
-		JOIN job_types t ON j.job_type_id = job_types.id
+		JOIN job_types t ON j.job_type_id = t.id
 		WHERE j.id = $1;
 	`
 	var analysis Analysis
