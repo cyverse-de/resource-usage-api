@@ -3,25 +3,29 @@ package internal
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/labstack/echo/v4"
 )
 
-type totalUpdaterFn func(float64, *db.CPUUsageWorkItem) float64
+type totalUpdaterFn func(*apd.Decimal, *db.CPUUsageWorkItem) (*apd.Decimal, error)
 
-func totalAdder(curr float64, workItem *db.CPUUsageWorkItem) float64 {
-	return curr + workItem.Value
+func totalAdder(curr *apd.Decimal, workItem *db.CPUUsageWorkItem) (*apd.Decimal, error) {
+	result := apd.New(0, 0)
+	_, err := apd.BaseContext.WithPrecision(15).Add(result, curr, &workItem.Value)
+	return result, err
 }
 
-func totalSubtracter(curr float64, workItem *db.CPUUsageWorkItem) float64 {
-	return curr - workItem.Value
+func totalSubtracter(curr *apd.Decimal, workItem *db.CPUUsageWorkItem) (*apd.Decimal, error) {
+	result := apd.New(0, 0)
+	_, err := apd.BaseContext.WithPrecision(15).Sub(result, curr, &workItem.Value)
+	return result, err
 }
 
-func totalReplacer(_ float64, workItem *db.CPUUsageWorkItem) float64 {
-	return workItem.Value
+func totalReplacer(_ *apd.Decimal, workItem *db.CPUUsageWorkItem) (*apd.Decimal, error) {
+	return &workItem.Value, nil
 }
 
 func (a *App) updateCPUHours(context context.Context, workItem *db.CPUUsageWorkItem, updater totalUpdaterFn) error {
@@ -45,7 +49,13 @@ func (a *App) updateCPUHours(context context.Context, workItem *db.CPUUsageWorkI
 		return err
 	}
 
-	total.Total = updater(total.Total, workItem)
+	newTotal, err := updater(&total.Total, workItem)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	total.Total = *newTotal
 
 	// Set the new total.
 	if err = d.UpdateCPUHoursTotal(context, total); err != nil {
@@ -87,7 +97,7 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 		err        error
 		user       string
 		valueParam string
-		value      float64
+		value      *apd.Decimal
 	)
 	context := c.Request().Context()
 
@@ -108,7 +118,8 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 	if valueParam == "" {
 		return echo.NewHTTPError(http.StatusBadRequest, "value was not set")
 	}
-	value, err = strconv.ParseFloat(valueParam, 64)
+
+	value, _, err = apd.NewFromString(valueParam)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, "value must be parsable as a 64-bit integer")
 	}
@@ -118,7 +129,7 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 		RecordDate:    time.Now(),
 		EffectiveDate: time.Now(),
 		CreatedBy:     userID,
-		Value:         value,
+		Value:         *value,
 	}
 
 	return d.AddCPUUsageEvent(context, &event)

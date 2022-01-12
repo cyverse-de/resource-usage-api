@@ -10,17 +10,18 @@ import (
 	"context"
 	"time"
 
+	"github.com/cockroachdb/apd"
 	"github.com/guregu/null"
 )
 
 type CPUUsageEvent struct {
-	ID            string    `db:"id" json:"id"`
-	RecordDate    time.Time `db:"record_date" json:"record_date"`
-	EffectiveDate time.Time `db:"effective_date" json:"effective_date"`
-	EventType     EventType `db:"event_type" json:"event_type"`
-	Value         float64   `db:"value" json:"value"`
-	CreatedBy     string    `db:"created_by" json:"created_by"`
-	LastModified  string    `db:"last_modified" json:"last_modified"`
+	ID            string      `db:"id" json:"id"`
+	RecordDate    time.Time   `db:"record_date" json:"record_date"`
+	EffectiveDate time.Time   `db:"effective_date" json:"effective_date"`
+	EventType     EventType   `db:"event_type" json:"event_type"`
+	Value         apd.Decimal `db:"value" json:"value"`
+	CreatedBy     string      `db:"created_by" json:"created_by"`
+	LastModified  string      `db:"last_modified" json:"last_modified"`
 }
 
 type CPUUsageWorkItem struct {

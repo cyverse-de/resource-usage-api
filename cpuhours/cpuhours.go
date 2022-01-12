@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/sirupsen/logrus"
@@ -59,17 +60,36 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 	startTime := analysis.StartDate.Time
 	endTime := analysis.EndDate.Time
 
-	timeSpent := endTime.Sub(startTime).Hours()
-	cpuHours := (millicoresReserved * timeSpent) / 1000.0 // Convert millicores to cores/CPUs
+	timeSpent, err := apd.New(0, 0).SetFloat64(endTime.Sub(startTime).Hours())
+	if err != nil {
+		return err
+	}
+
+	mcReserved := apd.New(0, 0).SetInt64(millicoresReserved)
+	cpuHours := apd.New(0, 0)
+	mc2cores := apd.New(1000, 0)
+
+	bc := apd.BaseContext.WithPrecision(15)
+	_, err = bc.Mul(cpuHours, mcReserved, timeSpent)
+	if err != nil {
+		return err
+	}
+
+	_, err = bc.Quo(cpuHours, cpuHours, mc2cores)
+	if err != nil {
+		return err
+	}
+
+	//cpuHours := (millicoresReserved * timeSpent) / 1000.0 // Convert millicores to cores/CPUs
 	nowTime := time.Now()
 
-	log.Infof("run time is %f hours; millicores reserved is %f; cpu hours is %f", timeSpent, millicoresReserved, cpuHours)
+	log.Infof("run time is %s hours; millicores reserved is %s; cpu hours is %s", timeSpent.String(), mcReserved.String(), cpuHours.String())
 
 	event := db.CPUUsageEvent{
 		CreatedBy:     analysis.UserID,
 		EffectiveDate: nowTime,
 		RecordDate:    nowTime,
-		Value:         cpuHours,
+		Value:         *cpuHours,
 	}
 
 	log.Debug("adding cpu usage event")
