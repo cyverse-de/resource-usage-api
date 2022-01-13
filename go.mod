@@ -3,6 +3,7 @@ module github.com/cyverse-de/resource-usage-api
 go 1.17
 
 require (
+	github.com/cockroachdb/apd v1.1.0
 	github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9
 	github.com/go-co-op/gocron v1.9.0
 	github.com/google/uuid v1.3.0
@@ -30,6 +31,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.2 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
+	github.com/pkg/errors v0.8.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/spf13/afero v1.6.0 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
