@@ -81,7 +81,7 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 		return err
 	}
 	cpuhours.Total = *newTotal
-	log.Infof("new total for user %s is %f based on a work item value of %f", username, cpuhours.Total, workItem.Value)
+	log.Infof("new total for user %s is %s based on a work item value of %s", username, cpuhours.Total.String(), workItem.Value.String())
 
 	// set the new current value.
 	if err = txdb.UpdateCPUHoursTotal(context, cpuhours); err != nil {
@@ -102,7 +102,7 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 		return err
 	}
 
-	log.Infof("committing transaction for updating the total to %f for user %s", cpuhours.Total, username)
+	log.Infof("committing transaction for updating the total to %s for user %s", cpuhours.Total.String(), username)
 
 	return nil
 }
