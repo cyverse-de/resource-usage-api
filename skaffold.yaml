@@ -10,5 +10,5 @@ build:
   tagPolicy:
     gitCommit: {}
   artifacts:
-  - image: discoenv/resource-usage-api
+  - image: harbor.cyverse.org/de/resource-usage-api
   local: {}
