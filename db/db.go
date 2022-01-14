@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 )
@@ -12,13 +13,13 @@ import (
 var log = logging.Log // nolint
 
 type CPUHours struct {
-	ID             string    `db:"id" json:"id"`
-	UserID         string    `db:"user_id" json:"user_id"`
-	Username       string    `db:"username" json:"username"`
-	Total          float64   `db:"total" json:"total"`
-	EffectiveStart time.Time `db:"effective_start" json:"effective_start"`
-	EffectiveEnd   time.Time `db:"effective_end" json:"effective_end"`
-	LastModified   time.Time `db:"last_modified" json:"last_modified"`
+	ID             string      `db:"id" json:"id"`
+	UserID         string      `db:"user_id" json:"user_id"`
+	Username       string      `db:"username" json:"username"`
+	Total          apd.Decimal `db:"total" json:"total"`
+	EffectiveStart time.Time   `db:"effective_start" json:"effective_start"`
+	EffectiveEnd   time.Time   `db:"effective_end" json:"effective_end"`
+	LastModified   time.Time   `db:"last_modified" json:"last_modified"`
 }
 
 type DatabaseAccessor interface {
@@ -246,7 +247,7 @@ func (d *Database) UpdateCPUHoursTotal(context context.Context, totalObj *CPUHou
 	return err
 }
 
-func (d *Database) MillicoresReserved(context context.Context, analysisID string) (float64, error) {
+func (d *Database) MillicoresReserved(context context.Context, analysisID string) (int64, error) {
 	const q = `
 		SELECT millicores_reserved
 		FROM jobs
@@ -254,5 +255,5 @@ func (d *Database) MillicoresReserved(context context.Context, analysisID string
 	`
 	var millicores int64
 	err := d.db.QueryRowxContext(context, q, analysisID).Scan(&millicores)
-	return float64(millicores), err
+	return millicores, err
 }
