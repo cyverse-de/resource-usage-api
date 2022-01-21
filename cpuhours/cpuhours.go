@@ -89,6 +89,7 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 		CreatedBy:     analysis.UserID,
 		EffectiveDate: nowTime,
 		RecordDate:    nowTime,
+		EventType:     db.CPUHoursAdd,
 		Value:         *cpuHours,
 	}
 
