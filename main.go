@@ -151,12 +151,19 @@ func main() {
 	log.Info("done connecting to the database")
 
 	amqpConfig := amqp.Configuration{
-		URI:          amqpURI,
-		Exchange:     amqpExchange,
-		ExchangeType: amqpExchangeType,
-		Reconnect:    *reconnect,
-		Queue:        *queue,
+		URI:           amqpURI,
+		Exchange:      amqpExchange,
+		ExchangeType:  amqpExchangeType,
+		Reconnect:     *reconnect,
+		Queue:         *queue,
+		PrefetchCount: 0,
 	}
+
+	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
+	log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
+	log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
+	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
+	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
 
 	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
 	if err != nil {
