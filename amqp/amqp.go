@@ -75,7 +75,7 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 		err    error
 	)
 
-	if err = delivery.Ack(true); err != nil {
+	if err = delivery.Ack(false); err != nil {
 		log.Error(err)
 		return
 	}
