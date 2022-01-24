@@ -75,6 +75,11 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 		err    error
 	)
 
+	if err = delivery.Ack(true); err != nil {
+		log.Error(err)
+		return
+	}
+
 	redelivered := delivery.Redelivered
 	if err = json.Unmarshal(delivery.Body, &update); err != nil {
 		log.Error(err)
