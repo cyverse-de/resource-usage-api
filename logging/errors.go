@@ -21,8 +21,23 @@ func HTTPErrorHandler(err error, c echo.Context) {
 		body = t
 	case *echo.HTTPError:
 		echoErr := t
+
 		code = echoErr.Code
-		body = NewErrorResponse(err)
+
+		errResp := ErrorResponse{
+			ErrorCode: echoErr.Code,
+		}
+
+		switch suberr := echoErr.Message.(type) {
+		case string:
+			errResp.Message = suberr
+		case error:
+			errResp.Message = suberr.Error()
+		default:
+			errResp.Message = "unknown message type"
+		}
+
+		body = NewErrorResponse(errResp)
 	default:
 		body = NewErrorResponse(err)
 	}
@@ -36,7 +51,7 @@ func HTTPErrorHandler(err error, c echo.Context) {
 // swagger:response errorResponse
 type ErrorResponse struct {
 	Message   string                  `json:"message"`
-	ErrorCode string                  `json:"error_code,omitempty"`
+	ErrorCode int                     `json:"code,omitempty"`
 	Details   *map[string]interface{} `json:"details,omitempty"`
 }
 
