@@ -53,12 +53,18 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 		return fmt.Errorf("start date is null")
 	}
 
-	if !analysis.EndDate.Valid {
-		return fmt.Errorf("end date is null")
+	var endTime time.Time
+
+	// It's possible for this to be reached before the database is updated with the actual
+	// end date. Use the current date in that case, which should normally work out to be
+	// in the user's favor, slightly.
+	if analysis.EndDate.Valid {
+		endTime = analysis.EndDate.Time
+	} else {
+		endTime = time.Now()
 	}
 
 	startTime := analysis.StartDate.Time
-	endTime := analysis.EndDate.Time
 
 	timeSpent, err := apd.New(0, 0).SetFloat64(endTime.Sub(startTime).Hours())
 	if err != nil {
