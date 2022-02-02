@@ -7,17 +7,17 @@ import (
 )
 
 type Analysis struct {
-	ID         string    `db:"id"`
-	AppID      string    `db:"app_id"`
-	StartDate  null.Time `db:"start_date"`
-	EndDate    null.Time `db:"end_date"`
-	Status     string    `db:"status"`
-	Deleted    bool      `db:"deleted"`
-	Submission string    `db:"submission"`
-	UserID     string    `db:"user_id"`
-	JobType    string    `db:"job_type"`
-	SystemID   string    `db:"system_id"`
-	Subdomain  string    `db:"subdomain"`
+	ID         string      `db:"id"`
+	AppID      string      `db:"app_id"`
+	StartDate  null.Time   `db:"start_date"`
+	EndDate    null.Time   `db:"end_date"`
+	Status     string      `db:"status"`
+	Deleted    bool        `db:"deleted"`
+	Submission string      `db:"submission"`
+	UserID     string      `db:"user_id"`
+	JobType    string      `db:"job_type"`
+	SystemID   string      `db:"system_id"`
+	Subdomain  null.String `db:"subdomain"`
 }
 
 // GetAnalysisIDByExternalID returns the analysis ID based on the external ID
