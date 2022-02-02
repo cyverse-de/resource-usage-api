@@ -66,6 +66,8 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 
 	startTime := analysis.StartDate.Time
 
+	log.Infof("start date: %s, end date: %s", startTime.String(), endTime.String())
+
 	timeSpent, err := apd.New(0, 0).SetFloat64(endTime.Sub(startTime).Hours())
 	if err != nil {
 		return err
