@@ -58,10 +58,17 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 	// It's possible for this to be reached before the database is updated with the actual
 	// end date. Use the current date in that case, which should normally work out to be
 	// in the user's favor, slightly.
+
+	// Also, we're not storing timezone data with the start dates, so assume they're local
+	// time but registered as being UTC.
 	if analysis.EndDate.Valid {
 		endTime = analysis.EndDate.Time.UTC()
 	} else {
-		endTime = time.Now().UTC()
+		n := time.Now()
+
+		// This looks weird and wrong, but it compensates for the database timestamp lacking
+		// timezone information.
+		endTime = time.Date(n.Year(), n.Month(), n.Day(), n.Hour(), n.Minute(), n.Second(), n.Nanosecond(), time.UTC)
 	}
 
 	startTime := analysis.StartDate.Time.UTC()
