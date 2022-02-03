@@ -59,12 +59,12 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 	// end date. Use the current date in that case, which should normally work out to be
 	// in the user's favor, slightly.
 	if analysis.EndDate.Valid {
-		endTime = analysis.EndDate.Time
+		endTime = analysis.EndDate.Time.UTC()
 	} else {
 		endTime = time.Now().UTC()
 	}
 
-	startTime := analysis.StartDate.Time
+	startTime := analysis.StartDate.Time.UTC()
 
 	log.Infof("start date: %s, end date: %s", startTime.String(), endTime.String())
 
