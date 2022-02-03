@@ -51,7 +51,7 @@ func HTTPErrorHandler(err error, c echo.Context) {
 // swagger:response errorResponse
 type ErrorResponse struct {
 	Message   string                  `json:"message"`
-	ErrorCode int                     `json:"code,omitempty"`
+	ErrorCode int                     `json:"error_code,omitempty"`
 	Details   *map[string]interface{} `json:"details,omitempty"`
 }
 
