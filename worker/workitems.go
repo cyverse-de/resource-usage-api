@@ -38,11 +38,17 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 
 	log.Debugf("got username %s for user ID %s", username, workItem.CreatedBy)
 
+	// Track whether or not to an insert. The constraints are a little
+	// different than normal, so an ON CONFLICT clause on the INSERT
+	// may actually be weirder than just handling it in code.
+	var doInsert bool
+
 	// Get the current value
 	cpuhours, err := txdb.CurrentCPUHoursForUser(context, username)
 	if err == sql.ErrNoRows {
-		log.Infof("adding new total record for user %s", username)
+		doInsert = true // Make sure to indicate than an insert should be done.
 
+		// Set the cpuhours to the current time and initialize the effective range.
 		start := time.Now()
 		cpuhours = &db.CPUHours{
 			Total:          *apd.New(0, 0),
@@ -50,22 +56,6 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 			EffectiveStart: start,
 			EffectiveEnd:   start.AddDate(0, 0, int(w.NewUserTotalInterval)),
 		}
-
-		log.Debugf("inserting 0 total hours for user %s since they didn't have a total", username)
-
-		if ierr := txdb.InsertCurrentCPUHoursForUser(context, cpuhours); ierr != nil {
-			log.Error(ierr)
-			err = multierr.Append(err, ierr)
-
-			log.Info("rolling back transaction")
-			if rerr := tx.Rollback(); rerr != nil {
-				err = multierr.Append(err, rerr)
-			}
-
-			return err
-		}
-
-		log.Debugf("done inserting 0 total hours for user %s", username)
 	} else if err != nil {
 		log.Error(err)
 		log.Info("rolling back transaction")
@@ -83,16 +73,36 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 	cpuhours.Total = *newTotal
 	log.Infof("new total for user %s is %s based on a work item value of %s", username, cpuhours.Total.String(), workItem.Value.String())
 
-	// set the new current value.
-	if err = txdb.UpdateCPUHoursTotal(context, cpuhours); err != nil {
-		log.Error(err)
-		log.Info("rolling back transaction")
-		if rerr := tx.Rollback(); rerr != nil {
-			err = multierr.Append(err, rerr)
+	if doInsert {
+		log.Debugf("doing initial insert of total %s for user %s", cpuhours.Total.String(), username)
+		if ierr := txdb.InsertCurrentCPUHoursForUser(context, cpuhours); ierr != nil {
+			log.Error(ierr)
+			err = multierr.Append(err, ierr)
+
+			log.Info("rolling back transaction")
+			if rerr := tx.Rollback(); rerr != nil {
+				err = multierr.Append(err, rerr)
+			}
+
+			return err
 		}
-		return err
+		log.Debug("done doing initial insert")
+	} else {
+		log.Debugf("updating total value to %s for user %s", cpuhours.Total.String(), username)
+
+		// set the new current value.
+		if err = txdb.UpdateCPUHoursTotal(context, cpuhours); err != nil {
+			log.Error(err)
+			log.Info("rolling back transaction")
+			if rerr := tx.Rollback(); rerr != nil {
+				err = multierr.Append(err, rerr)
+			}
+			return err
+		}
+		log.Debug("done updating total")
 	}
 
+	log.Infof("committing transaction for updating the total to %s for user %s", cpuhours.Total.String(), username)
 	if err = tx.Commit(); err != nil {
 		log.Error(err)
 		log.Info("rolling back transaction")
@@ -101,8 +111,7 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 		}
 		return err
 	}
-
-	log.Infof("committing transaction for updating the total to %s for user %s", cpuhours.Total.String(), username)
+	log.Debug("done committing transaction")
 
 	return nil
 }
