@@ -61,7 +61,7 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 	if analysis.EndDate.Valid {
 		endTime = analysis.EndDate.Time
 	} else {
-		endTime = time.Now()
+		endTime = time.Now().UTC()
 	}
 
 	startTime := analysis.StartDate.Time
