@@ -58,7 +58,13 @@ func sendMsgCB(dbClient *sqlx.DB, a *amqp.AMQP, routingKey string) worker.Messag
 	return func(workItem *db.CPUUsageWorkItem) {
 		var err error
 
-		username := workItem.CreatedBy
+		userID := workItem.CreatedBy
+
+		username, err := dedb.Username(context.Background(), userID)
+		if err != nil {
+			log.Error(err)
+			return
+		}
 
 		log = log.WithFields(logrus.Fields{"context": "send message callback", "user": username})
 
