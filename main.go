@@ -53,26 +53,43 @@ func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
 const CPUHoursAttr = "cpu.hours"
 const CPUHoursUnit = "cpu hours"
 
-func sendMsgCB(a *amqp.AMQP, routingKey string) worker.MessageSender {
+func sendMsgCB(dbClient *sqlx.DB, a *amqp.AMQP, routingKey string) worker.MessageSender {
+	dedb := db.New(dbClient)
 	return func(workItem *db.CPUUsageWorkItem) {
-		log = log.WithFields(logrus.Fields{"context": "send message callback"})
 		var err error
+
+		username := workItem.CreatedBy
+
+		log = log.WithFields(logrus.Fields{"context": "send message callback", "user": username})
+
+		log.Debug("getting current CPU hours")
+		currentCPUHours, err := dedb.CurrentCPUHoursForUser(context.Background(), username)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+		log.Debug("current CPU hours: %s", currentCPUHours.Total.String())
+
 		update := &worker.UsageUpdate{
 			Attribute: CPUHoursAttr,
-			Value:     workItem.Value.String(),
+			Value:     currentCPUHours.Total.String(),
 			Unit:      CPUHoursUnit,
 		}
 
+		log.Debug("marshalling update")
 		marshalled, err := json.Marshal(update)
 		if err != nil {
 			log.Error(err)
 			return
 		}
+		log.Debug("done marshalling update")
 
+		log.Debug("sending update")
 		if err = a.Send(routingKey, marshalled); err != nil {
 			log.Error(err)
 			return
 		}
+		log.Debug("done sending update")
 	}
 
 }
@@ -215,7 +232,7 @@ func main() {
 		ClaimLifetime:           claimLifetime,
 		WorkSeekingLifetime:     seekingLifetime,
 		NewUserTotalInterval:    newUserTotalInterval,
-		MessageSender:           sendMsgCB(amqpClient, *usageRoutingKey),
+		MessageSender:           sendMsgCB(dbconn, amqpClient, *usageRoutingKey),
 	}
 
 	log.Infof("worker name is %s", workerConfig.Name)
