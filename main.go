@@ -74,7 +74,7 @@ func sendMsgCB(dbClient *sqlx.DB, a *amqp.AMQP, routingKey string) worker.Messag
 			log.Error(err)
 			return
 		}
-		log.Debug("current CPU hours: %s", currentCPUHours.Total.String())
+		log.Debugf("current CPU hours: %s", currentCPUHours.Total.String())
 
 		update := &worker.UsageUpdate{
 			Attribute: CPUHoursAttr,
