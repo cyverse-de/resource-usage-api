@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -49,6 +50,33 @@ func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
 	}
 }
 
+const CPUHoursAttr = "cpu.hours"
+const CPUHoursUnit = "cpu hours"
+
+func sendMsgCB(a *amqp.AMQP, routingKey string) worker.MessageSender {
+	return func(workItem *db.CPUUsageWorkItem) {
+		log = log.WithFields(logrus.Fields{"context": "send message callback"})
+		var err error
+		update := &worker.UsageUpdate{
+			Attribute: CPUHoursAttr,
+			Value:     workItem.Value.String(),
+			Unit:      CPUHoursUnit,
+		}
+
+		marshalled, err := json.Marshal(update)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		if err = a.Send(routingKey, marshalled); err != nil {
+			log.Error(err)
+			return
+		}
+	}
+
+}
+
 func main() {
 	var (
 		err    error
@@ -68,6 +96,7 @@ func main() {
 		purgeSeekersIntervalFlag = flag.String("purge-seeker-interval", "5m", "The time between attempts to purge workers seeking work items for too long. Must parse as a time.Duration.")
 		purgeClaimsIntervalFlag  = flag.String("purge-claims-interval", "6m", "The time between attemtps to purge expired work claims. Must parse as a time.Duration.")
 		newUserTotalIntervalFlag = flag.String("new-user-total-interval", "365", "The number of days that user gets for new CPU hours tracking. Must parse as an integer.")
+		usageRoutingKey          = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
 	)
 
 	flag.Parse()
@@ -186,6 +215,7 @@ func main() {
 		ClaimLifetime:           claimLifetime,
 		WorkSeekingLifetime:     seekingLifetime,
 		NewUserTotalInterval:    newUserTotalInterval,
+		MessageSender:           sendMsgCB(amqpClient, *usageRoutingKey),
 	}
 
 	log.Infof("worker name is %s", workerConfig.Name)

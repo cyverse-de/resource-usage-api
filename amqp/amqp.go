@@ -53,6 +53,10 @@ func New(config *Configuration, handler HandlerFn) (*AMQP, error) {
 		handler: handler,
 	}
 
+	if err = a.client.SetupPublishing(config.Exchange); err != nil {
+		return nil, err
+	}
+
 	go a.client.Listen()
 
 	log.Debug("adding a consumer")
@@ -105,6 +109,10 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 	}
 
 	a.handler(update.Job.UUID, update.State)
+}
+
+func (a *AMQP) Send(routingKey string, data []byte) error {
+	return a.client.Publish(routingKey, data)
 }
 
 func (a *AMQP) Listen() {

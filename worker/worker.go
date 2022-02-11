@@ -18,6 +18,16 @@ var log = logging.Log.WithFields(
 	},
 )
 
+// MessageSender - handler for sending update messages based on a work item.
+type MessageSender func(*db.CPUUsageWorkItem)
+
+// UsageUpdate contains the info to be sent by MessageSender
+type UsageUpdate struct {
+	Attribute string `json:"attribute"`
+	Value     string `json:"value"`
+	Unit      string `json:"unit"`
+}
+
 type Worker struct {
 	ID                   string
 	Name                 string
@@ -26,6 +36,7 @@ type Worker struct {
 	ClaimLifetime        time.Duration
 	WorkSeekingLifetime  time.Duration
 	NewUserTotalInterval int64
+	MessageSender        MessageSender
 }
 
 type Config struct {
@@ -38,6 +49,7 @@ type Config struct {
 	ClaimLifetime           time.Duration
 	WorkSeekingLifetime     time.Duration
 	NewUserTotalInterval    int64
+	MessageSender           MessageSender
 }
 
 func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker, error) {
@@ -52,6 +64,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 		db:                   dbAccessor,
 		WorkSeekingLifetime:  config.WorkSeekingLifetime,
 		NewUserTotalInterval: config.NewUserTotalInterval,
+		MessageSender:        config.MessageSender,
 	}
 
 	database = db.New(worker.db)
@@ -208,6 +221,8 @@ func (w *Worker) Start(context context.Context) {
 		if err = w.finishWorking(context, &workItem); err != nil {
 			log.Error(err)
 		}
+
+		w.MessageSender(&workItem)
 
 		log.Infof("worker %s is finished with work item %s", w.ID, workItem.ID)
 	}
