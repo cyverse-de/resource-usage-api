@@ -112,6 +112,8 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 }
 
 func (a *AMQP) Send(routingKey string, data []byte) error {
+	log = log.WithFields(logrus.Fields{"context": "sending usage to QMS"})
+	log.Debugf("routing key: %s, message: %s", routingKey, string(data))
 	return a.client.Publish(routingKey, data)
 }
 
