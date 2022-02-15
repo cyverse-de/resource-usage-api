@@ -26,6 +26,8 @@ type UsageUpdate struct {
 	Attribute string `json:"attribute"`
 	Value     string `json:"value"`
 	Unit      string `json:"unit"`
+	Username  string `json:"username"`
+	UserID    string `json:"user_id"`
 }
 
 type Worker struct {

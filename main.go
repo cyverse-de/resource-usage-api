@@ -80,6 +80,8 @@ func sendMsgCB(dbClient *sqlx.DB, a *amqp.AMQP, routingKey string) worker.Messag
 			Attribute: CPUHoursAttr,
 			Value:     currentCPUHours.Total.String(),
 			Unit:      CPUHoursUnit,
+			Username:  username,
+			UserID:    userID,
 		}
 
 		log.Debug("marshalling update")
