@@ -122,6 +122,8 @@ func main() {
 		purgeClaimsIntervalFlag  = flag.String("purge-claims-interval", "6m", "The time between attemtps to purge expired work claims. Must parse as a time.Duration.")
 		newUserTotalIntervalFlag = flag.String("new-user-total-interval", "365", "The number of days that user gets for new CPU hours tracking. Must parse as an integer.")
 		usageRoutingKey          = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
+		dataUsageBase            = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
+		dataUsageCurrentSuffix   = flag.String("data-usage-current-suffix", "/data/current", "The data-usage-api endpoints start with /:username, so this is the rest of the path after that.")
 	)
 
 	flag.Parse()
@@ -228,7 +230,13 @@ func main() {
 
 	log.Info("done connecting to the AMQP broker")
 
-	app := internal.New(dbconn, userSuffix)
+	appConfig := &internal.AppConfiguration{
+		UserSuffix:               userSuffix,
+		DataUsageBase:            *dataUsageBase,
+		CurrentDataUsageEndpoint: *dataUsageCurrentSuffix,
+	}
+
+	app := internal.New(dbconn, appConfig)
 
 	workerConfig := worker.Config{
 		Name:                    strings.ReplaceAll(uuid.New().String(), "-", ""),
