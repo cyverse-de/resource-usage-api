@@ -53,6 +53,7 @@ func (a *App) Router() *echo.Echo {
 
 	summaryRoute := a.router.Group("/summary/:username")
 	summaryRoute.GET("/", a.GetUserSummary)
+	summaryRoute.GET("", a.GetUserSummary)
 
 	cpuroute := a.router.Group("/:username/cpu")
 	cpuroute.GET("/total", a.CurrentCPUHoursHandler)
