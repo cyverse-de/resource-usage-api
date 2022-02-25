@@ -25,11 +25,60 @@ type UserDataUsage struct {
 	LastModified string `json:"last_modified"`
 }
 
+// User is the QMS representation of a user.
+type User struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+// Plan is the representation of a plan.
+type Plan struct {
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	Description string `json:"description"`
+}
+
+type ResourceType struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	Unit string `json:"description"`
+}
+
+type Quota struct {
+	ID             string       `json:"id"`
+	Quota          float64      `json:"quota"`
+	AddedBy        string       `json:"added_by"`
+	LastModifiedBy string       `json:"last_modified_by"`
+	ResourceType   ResourceType `json:"resource_type"`
+}
+
+type Usage struct {
+	ID             string       `json:"id"`
+	Usage          float64      `json:"usage"`
+	AddedBy        string       `json:"added_by"`
+	LastModifiedBy string       `json:"last_modified_by"`
+	ResourceType   ResourceType `json:"resource_type"`
+}
+
+// UserPlan is the representation of a user plan.
+type UserPlan struct {
+	ID                 string  `json:"id"`
+	EffectiveStartDate string  `json:"effective_start_date"`
+	EffectiveEndDate   string  `json:"effective_end_date"`
+	AddedBy            string  `json:"added_by"`
+	LastModifiedBy     string  `json:"last_modified_by"`
+	User               User    `json:"user"`
+	Plan               Plan    `json:"plan"`
+	Quotas             []Quota `json:"quotas"`
+	Usages             []Usage `json:"usages"`
+}
+
 // UserSummary contains the data summarizing the user's current resource
 // usages and their current plan.
 type UserSummary struct {
 	CPUUsage  *db.CPUHours   `json:"cpu_usage"`
 	DataUsage *UserDataUsage `json:"data_usage"`
+	UserPlan  *UserPlan      `json:"user_plan"`
 }
 
 // GetUserSummary is an echo request handler for requests to get a user's
@@ -89,9 +138,38 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, err)
 	}
 
+	// Get the user plan
+	userPlanURL, err := url.Parse(a.dataUsageBase)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+	userPlanURL.Path = fmt.Sprintf("/users/%s/plan", user)
+
+	userPlanReq, err := http.NewRequest(http.MethodGet, userPlanURL.String(), nil)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	userPlanResp, err := http.DefaultClient.Do(userPlanReq)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	// Read the body and parse the JSON into a struct.
+	userPlanBody, err := io.ReadAll(userPlanResp.Body)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
+	var up UserPlan
+	if err = json.Unmarshal(userPlanBody, &up); err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	}
+
 	summary := &UserSummary{
 		CPUUsage:  cpuHours,
 		DataUsage: &du,
+		UserPlan:  &up,
 	}
 
 	return c.JSON(http.StatusOK, summary)
