@@ -19,13 +19,17 @@ type App struct {
 	userSuffix       string
 	dataUsageBase    string
 	dataUsageCurrent string
+	qmsBaseURL       string
+	qmsEnabled       bool
 }
 
 // AppConfiguration contains the settings needed to configure the App.
 type AppConfiguration struct {
 	UserSuffix               string
-	DataUsageBase            string
+	DataUsageBaseURL         string
 	CurrentDataUsageEndpoint string
+	QMSEnabled               bool
+	QMSBaseURL               string
 }
 
 func (a *App) FixUsername(username string) string {
@@ -40,8 +44,10 @@ func New(db *sqlx.DB, config *AppConfiguration) *App {
 		database:         db,
 		router:           echo.New(),
 		userSuffix:       config.UserSuffix,
-		dataUsageBase:    config.DataUsageBase,
+		dataUsageBase:    config.DataUsageBaseURL,
 		dataUsageCurrent: config.CurrentDataUsageEndpoint,
+		qmsEnabled:       config.QMSEnabled,
+		qmsBaseURL:       config.QMSBaseURL,
 	}
 
 	return app

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/labstack/echo/v4"
@@ -67,10 +68,10 @@ type UserPlan struct {
 	EffectiveEndDate   string  `json:"effective_end_date"`
 	AddedBy            string  `json:"added_by"`
 	LastModifiedBy     string  `json:"last_modified_by"`
-	User               User    `json:"user"`
+	User               User    `json:"users"`
 	Plan               Plan    `json:"plan"`
 	Quotas             []Quota `json:"quotas"`
-	Usages             []Usage `json:"usages"`
+	Usages             []Usage `json:"-"`
 }
 
 type UserPlanResult struct {
@@ -219,21 +220,9 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 	}
 
-	// Get the user plan
-	userPlanURL, err := url.Parse(a.dataUsageBase)
-	if err != nil {
-		planOK = false
-		planErr := APIError{
-			Field:     "user_plan",
-			Message:   err.Error(),
-			ErrorCode: http.StatusInternalServerError,
-		}
-		summary.Errors = append(summary.Errors, planErr)
-	}
-	userPlanURL.Path = fmt.Sprintf("/users/%s/plan", user)
-
-	if planOK {
-		userPlanReq, err = http.NewRequest(http.MethodGet, userPlanURL.String(), nil)
+	if a.qmsEnabled {
+		// Get the user plan
+		userPlanURL, err := url.Parse(a.qmsBaseURL)
 		if err != nil {
 			planOK = false
 			planErr := APIError{
@@ -243,51 +232,79 @@ func (a *App) GetUserSummary(c echo.Context) error {
 			}
 			summary.Errors = append(summary.Errors, planErr)
 		}
-	}
+		userPlanURL.Path = fmt.Sprintf(
+			"/v1/users/%s/plan",
+			strings.TrimSuffix(user, fmt.Sprintf("@%s", a.userSuffix)),
+		)
 
-	if planOK {
-		userPlanResp, err = http.DefaultClient.Do(userPlanReq)
-		if err != nil {
-			planOK = false
-			planErr := APIError{
-				Field:     "user_plan",
-				Message:   err.Error(),
-				ErrorCode: http.StatusInternalServerError,
+		log.Debug(userPlanURL.String())
+
+		if planOK {
+			userPlanReq, err = http.NewRequest(http.MethodGet, userPlanURL.String(), nil)
+			if err != nil {
+				planOK = false
+				planErr := APIError{
+					Field:     "user_plan",
+					Message:   err.Error(),
+					ErrorCode: http.StatusInternalServerError,
+				}
+				summary.Errors = append(summary.Errors, planErr)
 			}
-			summary.Errors = append(summary.Errors, planErr)
 		}
-	}
 
-	if planOK {
-		// Read the body and parse the JSON into a struct.
-		userPlanBody, err = io.ReadAll(userPlanResp.Body)
-		if err != nil {
-			planOK = false
-			planErr := APIError{
-				Field:     "user_plan",
-				Message:   err.Error(),
-				ErrorCode: http.StatusInternalServerError,
+		if planOK {
+			userPlanResp, err = http.DefaultClient.Do(userPlanReq)
+			if err != nil {
+				planOK = false
+				planErr := APIError{
+					Field:     "user_plan",
+					Message:   err.Error(),
+					ErrorCode: http.StatusInternalServerError,
+				}
+				summary.Errors = append(summary.Errors, planErr)
+			} else if userPlanResp.StatusCode < 200 || userPlanResp.StatusCode > 299 {
+				planOK = false
+				planErr := APIError{
+					Field:     "user_plan",
+					Message:   fmt.Sprintf("status code was %d", userPlanResp.StatusCode),
+					ErrorCode: userPlanResp.StatusCode,
+				}
+				summary.Errors = append(summary.Errors, planErr)
 			}
-			summary.Errors = append(summary.Errors, planErr)
 		}
-	}
 
-	var up UserPlanResult
-
-	if planOK {
-		if err = json.Unmarshal(userPlanBody, &up); err != nil {
-			planErr := APIError{
-				Field:     "user_plan",
-				Message:   err.Error(),
-				ErrorCode: http.StatusInternalServerError,
+		if planOK {
+			// Read the body and parse the JSON into a struct.
+			userPlanBody, err = io.ReadAll(userPlanResp.Body)
+			if err != nil {
+				planOK = false
+				planErr := APIError{
+					Field:     "user_plan",
+					Message:   err.Error(),
+					ErrorCode: http.StatusInternalServerError,
+				}
+				summary.Errors = append(summary.Errors, planErr)
 			}
-			summary.Errors = append(summary.Errors, planErr)
 		}
+
+		var up UserPlanResult
+
+		if planOK {
+			if err = json.Unmarshal(userPlanBody, &up); err != nil {
+				planErr := APIError{
+					Field:     "user_plan",
+					Message:   err.Error(),
+					ErrorCode: http.StatusInternalServerError,
+				}
+				summary.Errors = append(summary.Errors, planErr)
+			}
+		}
+
+		summary.UserPlan = &up.Result
 	}
 
 	summary.CPUUsage = cpuHours
 	summary.DataUsage = &du
-	summary.UserPlan = &up.Result
 
 	return c.JSON(http.StatusOK, &summary)
 

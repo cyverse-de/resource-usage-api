@@ -163,6 +163,15 @@ func main() {
 		log.Fatal("users.domain must be set in the configuration file")
 	}
 
+	qmsEnabled := config.GetBool("qms.enabled")
+	qmsBaseURL := config.GetString("qms.base")
+
+	if qmsEnabled {
+		if qmsBaseURL == "" {
+			log.Fatal("qms.base must be set in the configuration file if qms.enabled is true")
+		}
+	}
+
 	workerLifetime, err := time.ParseDuration(*workerLifetimeFlag)
 	if err != nil {
 		log.Fatal(err)
@@ -232,8 +241,10 @@ func main() {
 
 	appConfig := &internal.AppConfiguration{
 		UserSuffix:               userSuffix,
-		DataUsageBase:            *dataUsageBase,
+		DataUsageBaseURL:         *dataUsageBase,
 		CurrentDataUsageEndpoint: *dataUsageCurrentSuffix,
+		QMSEnabled:               qmsEnabled,
+		QMSBaseURL:               qmsBaseURL,
 	}
 
 	app := internal.New(dbconn, appConfig)
