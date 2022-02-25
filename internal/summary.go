@@ -183,6 +183,14 @@ func (a *App) GetUserSummary(c echo.Context) error {
 				ErrorCode: http.StatusInternalServerError,
 			}
 			summary.Errors = append(summary.Errors, duError)
+		} else if duResp.StatusCode < 200 || duResp.StatusCode > 299 {
+			duOK = false
+			duError := APIError{
+				Field:     "data_usage",
+				Message:   fmt.Sprintf("status code was %d", duResp.StatusCode),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, duError)
 		}
 		defer duResp.Body.Close()
 	}
