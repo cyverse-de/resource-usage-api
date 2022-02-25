@@ -126,6 +126,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 
 	cpuHours, err = d.CurrentCPUHoursForUser(context, user)
 	if err == sql.ErrNoRows {
+		cpuHours = &db.CPUHours{}
 		cpuHoursError := APIError{
 			Field:     "cpu_usage",
 			Message:   "no current CPU hours found for user",
@@ -134,6 +135,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		summary.Errors = append(summary.Errors, cpuHoursError)
 	} else if err != nil {
 		log.Error(err)
+		cpuHours = &db.CPUHours{}
 		cpuHoursError := APIError{
 			Field:     "cpu_usage",
 			Message:   err.Error(),
