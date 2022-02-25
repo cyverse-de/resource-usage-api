@@ -73,17 +73,42 @@ type UserPlan struct {
 	Usages             []Usage `json:"usages"`
 }
 
+type APIError struct {
+	Field     string `json:"field"`
+	Message   string `json:"message"`
+	ErrorCode int    `json:"error_code"`
+}
+
 // UserSummary contains the data summarizing the user's current resource
 // usages and their current plan.
 type UserSummary struct {
 	CPUUsage  *db.CPUHours   `json:"cpu_usage"`
 	DataUsage *UserDataUsage `json:"data_usage"`
 	UserPlan  *UserPlan      `json:"user_plan"`
+	Errors    []APIError     `json:"errors"`
 }
 
 // GetUserSummary is an echo request handler for requests to get a user's
 // resource usage and current plan (if QMS is enabled).
 func (a *App) GetUserSummary(c echo.Context) error {
+	var (
+		err     error
+		summary UserSummary
+
+		duOK   bool
+		planOK bool
+
+		userPlanReq  *http.Request
+		userPlanResp *http.Response
+		userPlanBody []byte
+
+		dataUsageReq *http.Request
+		duResp       *http.Response
+		duBody       []byte
+	)
+	duOK = true
+	planOK = true
+
 	log = log.WithFields(logrus.Fields{"context": "get user summary"})
 	context := c.Request().Context()
 
@@ -97,81 +122,167 @@ func (a *App) GetUserSummary(c echo.Context) error {
 
 	d := db.New(a.database)
 
-	cpuHours, err := d.CurrentCPUHoursForUser(context, user)
+	var cpuHours *db.CPUHours
+
+	cpuHours, err = d.CurrentCPUHoursForUser(context, user)
 	if err == sql.ErrNoRows {
-		return echo.NewHTTPError(http.StatusNotFound, errors.New("no current CPU hours found for user"))
+		cpuHoursError := APIError{
+			Field:     "cpu_usage",
+			Message:   "no current CPU hours found for user",
+			ErrorCode: http.StatusNotFound,
+		}
+		summary.Errors = append(summary.Errors, cpuHoursError)
 	} else if err != nil {
 		log.Error(err)
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		cpuHoursError := APIError{
+			Field:     "cpu_usage",
+			Message:   err.Error(),
+			ErrorCode: http.StatusInternalServerError,
+		}
+		summary.Errors = append(summary.Errors, cpuHoursError)
 	}
 
 	// Put together the URL for the request in to the data-usage-api
 	dataUsageURL, err := url.Parse(a.dataUsageBase)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		duOK = false
+		duError := APIError{
+			Field:     "data_usage",
+			Message:   err.Error(),
+			ErrorCode: http.StatusInternalServerError,
+		}
+		summary.Errors = append(summary.Errors, duError)
 	}
 
-	// The path should be /:username/data/current,
-	dataUsageURL.Path = fmt.Sprintf("/%s%s", user, a.dataUsageCurrent)
+	if duOK {
+		// The path should be /:username/data/current,
+		dataUsageURL.Path = fmt.Sprintf("/%s%s", user, a.dataUsageCurrent)
 
-	// Create the request to to the data-usage-api.
-	dataUsageReq, err := http.NewRequest(http.MethodGet, dataUsageURL.String(), nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		// Create the request to to the data-usage-api.
+		dataUsageReq, err = http.NewRequest(http.MethodGet, dataUsageURL.String(), nil)
+		if err != nil {
+			duOK = false
+			duError := APIError{
+				Field:     "data_usage",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, duError)
+		}
 	}
 
-	// Make the request to the data-usage-api. Close the body when the handler returns.
-	resp, err := http.DefaultClient.Do(dataUsageReq)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	if duOK {
+		// Make the request to the data-usage-api. Close the body when the handler returns.
+		duResp, err = http.DefaultClient.Do(dataUsageReq)
+		if err != nil {
+			duOK = false
+			duError := APIError{
+				Field:     "data_usage",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, duError)
+		}
+		defer duResp.Body.Close()
 	}
-	defer resp.Body.Close()
 
-	// Read the body and parse the JSON into a struct.
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	if duOK {
+		// Read the body and parse the JSON into a struct.
+		duBody, err = io.ReadAll(duResp.Body)
+		if err != nil {
+			duOK = false
+			duError := APIError{
+				Field:     "data_usage",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, duError)
+		}
 	}
 
 	var du UserDataUsage
-	if err = json.Unmarshal(body, &du); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+
+	if duOK {
+		if err = json.Unmarshal(duBody, &du); err != nil {
+			duError := APIError{
+				Field:     "data_usage",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, duError)
+		}
 	}
 
 	// Get the user plan
 	userPlanURL, err := url.Parse(a.dataUsageBase)
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+		planOK = false
+		planErr := APIError{
+			Field:     "user_plan",
+			Message:   err.Error(),
+			ErrorCode: http.StatusInternalServerError,
+		}
+		summary.Errors = append(summary.Errors, planErr)
 	}
 	userPlanURL.Path = fmt.Sprintf("/users/%s/plan", user)
 
-	userPlanReq, err := http.NewRequest(http.MethodGet, userPlanURL.String(), nil)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	if planOK {
+		userPlanReq, err = http.NewRequest(http.MethodGet, userPlanURL.String(), nil)
+		if err != nil {
+			planOK = false
+			planErr := APIError{
+				Field:     "user_plan",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, planErr)
+		}
 	}
 
-	userPlanResp, err := http.DefaultClient.Do(userPlanReq)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	if planOK {
+		userPlanResp, err = http.DefaultClient.Do(userPlanReq)
+		if err != nil {
+			planOK = false
+			planErr := APIError{
+				Field:     "user_plan",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, planErr)
+		}
 	}
 
-	// Read the body and parse the JSON into a struct.
-	userPlanBody, err := io.ReadAll(userPlanResp.Body)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+	if planOK {
+		// Read the body and parse the JSON into a struct.
+		userPlanBody, err = io.ReadAll(userPlanResp.Body)
+		if err != nil {
+			planOK = false
+			planErr := APIError{
+				Field:     "user_plan",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, planErr)
+		}
 	}
 
 	var up UserPlan
-	if err = json.Unmarshal(userPlanBody, &up); err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err)
+
+	if planOK {
+		if err = json.Unmarshal(userPlanBody, &up); err != nil {
+			planErr := APIError{
+				Field:     "user_plan",
+				Message:   err.Error(),
+				ErrorCode: http.StatusInternalServerError,
+			}
+			summary.Errors = append(summary.Errors, planErr)
+		}
 	}
 
-	summary := &UserSummary{
-		CPUUsage:  cpuHours,
-		DataUsage: &du,
-		UserPlan:  &up,
-	}
+	summary.CPUUsage = cpuHours
+	summary.DataUsage = &du
+	summary.UserPlan = &up
 
-	return c.JSON(http.StatusOK, summary)
+	return c.JSON(http.StatusOK, &summary)
 
 }
