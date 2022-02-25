@@ -301,6 +301,13 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 
 		summary.UserPlan = &up.Result
+	} else {
+		summary.UserPlan = &UserPlan{}
+		summary.Errors = append(summary.Errors, APIError{
+			Field:     "user_plan",
+			Message:   "QMS support is disabled",
+			ErrorCode: http.StatusInternalServerError,
+		})
 	}
 
 	summary.CPUUsage = cpuHours
