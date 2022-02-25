@@ -73,6 +73,10 @@ type UserPlan struct {
 	Usages             []Usage `json:"usages"`
 }
 
+type UserPlanResult struct {
+	Result UserPlan `json:"result"`
+}
+
 type APIError struct {
 	Field     string `json:"field"`
 	Message   string `json:"message"`
@@ -268,7 +272,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 	}
 
-	var up UserPlan
+	var up UserPlanResult
 
 	if planOK {
 		if err = json.Unmarshal(userPlanBody, &up); err != nil {
@@ -283,7 +287,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 
 	summary.CPUUsage = cpuHours
 	summary.DataUsage = &du
-	summary.UserPlan = &up
+	summary.UserPlan = &up.Result
 
 	return c.JSON(http.StatusOK, &summary)
 
