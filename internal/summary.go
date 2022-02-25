@@ -46,19 +46,15 @@ type ResourceType struct {
 }
 
 type Quota struct {
-	ID             string       `json:"id"`
-	Quota          float64      `json:"quota"`
-	AddedBy        string       `json:"added_by"`
-	LastModifiedBy string       `json:"last_modified_by"`
-	ResourceType   ResourceType `json:"resource_type"`
+	ID           string       `json:"id"`
+	Quota        float64      `json:"quota"`
+	ResourceType ResourceType `json:"resource_type"`
 }
 
 type Usage struct {
-	ID             string       `json:"id"`
-	Usage          float64      `json:"usage"`
-	AddedBy        string       `json:"added_by"`
-	LastModifiedBy string       `json:"last_modified_by"`
-	ResourceType   ResourceType `json:"resource_type"`
+	ID           string       `json:"id"`
+	Usage        float64      `json:"usage"`
+	ResourceType ResourceType `json:"resource_type"`
 }
 
 // UserPlan is the representation of a user plan.
@@ -66,8 +62,6 @@ type UserPlan struct {
 	ID                 string  `json:"id"`
 	EffectiveStartDate string  `json:"effective_start_date"`
 	EffectiveEndDate   string  `json:"effective_end_date"`
-	AddedBy            string  `json:"added_by"`
-	LastModifiedBy     string  `json:"last_modified_by"`
 	User               User    `json:"users"`
 	Plan               Plan    `json:"plan"`
 	Quotas             []Quota `json:"quotas"`
