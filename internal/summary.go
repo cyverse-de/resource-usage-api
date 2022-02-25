@@ -188,7 +188,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 			duError := APIError{
 				Field:     "data_usage",
 				Message:   fmt.Sprintf("status code was %d", duResp.StatusCode),
-				ErrorCode: http.StatusInternalServerError,
+				ErrorCode: duResp.StatusCode,
 			}
 			summary.Errors = append(summary.Errors, duError)
 		}
