@@ -24,6 +24,12 @@ func New(db *db.Database) *CPUHours {
 }
 
 func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID string) error {
+	var (
+		endTime  time.Time
+		analysis *db.Analysis
+		err      error
+	)
+
 	log = log.WithFields(logrus.Fields{"context": "calculating CPU hours", "externalID": externalID})
 
 	log.Debug("getting analysis id")
@@ -42,33 +48,28 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 	}
 	log.Debug("done getting millicores reserved")
 
-	log.Debug("getting analysis info")
-	analysis, err := c.db.AnalysisWithoutUser(context, analysisID)
-	if err != nil {
-		return err
-	}
-	log.Debug("done getting analysis info")
+	for {
+		log.Debug("getting analysis info")
+		analysis, err = c.db.AnalysisWithoutUser(context, analysisID)
+		if err != nil {
+			return err
+		}
+		log.Debug("done getting analysis info")
 
-	if !analysis.StartDate.Valid {
-		return fmt.Errorf("start date is null")
-	}
+		if !analysis.StartDate.Valid {
+			return fmt.Errorf("start date is null")
+		}
 
-	var endTime time.Time
+		// It's possible for this to be reached before the database is updated with the actual
+		// end date. If that's the case, wait a bit and try again.
+		if !analysis.EndDate.Valid {
+			time.Sleep(5 * time.Second)
+			continue
 
-	// It's possible for this to be reached before the database is updated with the actual
-	// end date. Use the current date in that case, which should normally work out to be
-	// in the user's favor, slightly.
-
-	// Also, we're not storing timezone data with the start dates, so assume they're local
-	// time but registered as being UTC.
-	if analysis.EndDate.Valid {
-		endTime = analysis.EndDate.Time.UTC()
-	} else {
-		n := time.Now()
-
-		// This looks weird and wrong, but it compensates for the database timestamp lacking
-		// timezone information.
-		endTime = time.Date(n.Year(), n.Month(), n.Day(), n.Hour(), n.Minute(), n.Second(), n.Nanosecond(), time.UTC)
+		} else {
+			endTime = analysis.EndDate.Time.UTC()
+			break
+		}
 	}
 
 	startTime := analysis.StartDate.Time.UTC()
