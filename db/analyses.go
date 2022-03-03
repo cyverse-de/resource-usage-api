@@ -103,8 +103,8 @@ func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID st
 		FROM jobs j
 		WHERE j.user_id = $1
 		AND j.millicores_reserved != 0
-		AND j.start_date NOT NULL
-		AND j.end_date NOT NULL;
+		AND j.start_date IS NOT NULL
+		AND j.end_date IS NOT NULL;
 	`
 	rows, err := d.db.QueryxContext(context, q, userID)
 	if err != nil {
