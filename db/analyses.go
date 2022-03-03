@@ -86,10 +86,10 @@ func (d *Database) Analysis(context context.Context, userID, id string) (*Analys
 }
 
 type CalculableAnalysis struct {
-	ID                 string
-	StartDate          time.Time
-	EndDate            time.Time
-	MillicoresReserved int64
+	ID                 string    `db:"id"`
+	StartDate          time.Time `db:"start_date"`
+	EndDate            time.Time `db:"end_date"`
+	MillicoresReserved int64     `db:"millicores_reserved"`
 }
 
 func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID string) ([]CalculableAnalysis, error) {
@@ -111,12 +111,16 @@ func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID st
 		return nil, err
 	}
 
+	log.Debugf("user %s", userID)
+
 	for rows.Next() {
 		var a CalculableAnalysis
 		err = rows.StructScan(&a)
 		if err != nil {
 			return nil, err
 		}
+		log.Debugf("id: %s; start_date: %s; end_date: %s; millicores_reserved: %s", a.ID, a.StartDate, a.EndDate, a.MillicoresReserved)
+
 		analyses = append(analyses, a)
 	}
 

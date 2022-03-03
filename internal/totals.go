@@ -123,6 +123,8 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 	// Add the user to the logging context to make the logs easier to read.
 	log = log.WithFields(logrus.Fields{"user": user})
 
+	log.Debugf("username set to %s", user)
+
 	d := db.New(a.database)
 	ch := cpuhours.New(d)
 
@@ -134,6 +136,8 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 	} else if err != nil {
 		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
 	}
+
+	log.Debugf("userID set to %s", userID)
 
 	// Get the list of the user's analyses that have a millicores_reserved value, a start date, and an end date.
 	analyses, err = d.AdminAllCalculableAnalyses(context, userID)
@@ -176,6 +180,7 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 	// For each analysis and CPU hours total, emit a new event adding the new analysis
 	// total to the user's overall total.
 	for _, analysis := range analyses {
+		now = time.Now()
 		newEvent := db.CPUUsageEvent{
 			CreatedBy:     userID,
 			EffectiveDate: now,
@@ -186,6 +191,7 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 		if err = d.AddCPUUsageEvent(context, &newEvent); err != nil {
 			return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 		}
+		time.Sleep(5 * time.Millisecond) // just to make sure that we don't run afoul of a weird uniqueness constraint
 	}
 
 	return nil
