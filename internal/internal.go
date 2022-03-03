@@ -81,6 +81,7 @@ func (a *App) Router() *echo.Echo {
 	cpuadmin := admin.Group("/cpu")
 	cpuadmin.GET("/totals", a.AdminAllCurrentCPUHoursHandler)
 	cpuadmin.GET("/totals/all", a.AdminAllCPUHoursTotalsHandler)
+	cpuadmin.POST("/recalculate/:username", a.AdminRecalculateCPUHoursTotalHandler)
 
 	events := cpuadmin.Group("/events")
 	events.GET("", a.AdminListEvents)

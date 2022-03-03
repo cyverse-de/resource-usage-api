@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"time"
 
 	"github.com/guregu/null"
 )
@@ -82,4 +83,46 @@ func (d *Database) Analysis(context context.Context, userID, id string) (*Analys
 	`
 	err := d.db.QueryRowxContext(context, q, id, userID).StructScan(&analysis)
 	return &analysis, err
+}
+
+type CalculableAnalysis struct {
+	ID                 string
+	StartDate          time.Time
+	EndDate            time.Time
+	MillicoresReserved int64
+}
+
+func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID string) ([]CalculableAnalysis, error) {
+	var analyses []CalculableAnalysis
+	const q = `
+		SELECT
+			j.id,
+			j.start_date,
+			j.end_date,
+			j.millicores_reserved
+		FROM jobs j
+		WHERE j.user_id = $1
+		AND j.millicores_reserved != 0
+		AND j.start_date NOT NULL
+		AND j.end_date NOT NULL;
+	`
+	rows, err := d.db.QueryxContext(context, q, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var a CalculableAnalysis
+		err = rows.StructScan(&a)
+		if err != nil {
+			return nil, err
+		}
+		analyses = append(analyses, a)
+	}
+
+	if err = rows.Err(); err != nil {
+		return analyses, err
+	}
+
+	return analyses, nil
 }
