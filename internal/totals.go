@@ -196,3 +196,26 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 
 	return nil
 }
+
+func (a *App) AdminUsersWithCalculableAnalysesHandler(c echo.Context) error {
+	var (
+		users []db.User
+		err   error
+	)
+	context := c.Request().Context()
+
+	var log = log.WithFields(logrus.Fields{"context": "users with calculable analyses"})
+
+	d := db.New(a.database)
+
+	log.Info("finding users with calculable analyses")
+
+	users, err = d.UsersWithCalculableAnalyses(context)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+
+	log.Infof("found %d users with calculable analyses", len(users))
+
+	return c.JSON(http.StatusOK, users)
+}

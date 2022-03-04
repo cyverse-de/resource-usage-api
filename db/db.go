@@ -22,6 +22,12 @@ type CPUHours struct {
 	LastModified   time.Time   `db:"last_modified" json:"last_modified"`
 }
 
+// User has information about a user from the DE's database.
+type User struct {
+	ID       string `db:"id" json:"id"`
+	Username string `db:"username" json:"username"`
+}
+
 type DatabaseAccessor interface {
 	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
 	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
@@ -256,4 +262,39 @@ func (d *Database) MillicoresReserved(context context.Context, analysisID string
 	var millicores int64
 	err := d.db.QueryRowxContext(context, q, analysisID).Scan(&millicores)
 	return millicores, err
+}
+
+func (d *Database) UsersWithCalculableAnalyses(context context.Context) ([]User, error) {
+	var users []User
+
+	const q = `
+		SELECT
+			DISTINCT ON (u.id) u.id,
+			u.username
+		FROM users u
+		JOIN jobs j ON j.user_id = u.id
+		WHERE j.millicores_reserved != 0
+		AND j.start_date IS NOT NULL
+		AND j.end_date IS NOT NULL;
+	`
+
+	rows, err := d.db.QueryxContext(context, q)
+	if err != nil {
+		return nil, err
+	}
+
+	for rows.Next() {
+		var u User
+		err = rows.StructScan(&u)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	if err = rows.Err(); err != nil {
+		return users, err
+	}
+
+	return users, nil
 }
