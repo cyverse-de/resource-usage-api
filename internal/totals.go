@@ -120,6 +120,24 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 	}
 	user = a.FixUsername(user)
 
+	from := c.QueryParam("from")
+	if from == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("from query parameter was not set"))
+	}
+	fromDate, err := time.Parse("2006-01-02 03:04:05", from)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("from query parameter must be in the format 2006-01-02 03:04:05"))
+	}
+
+	to := c.QueryParam("to")
+	if to == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("to query parameter was not set"))
+	}
+	toDate, err := time.Parse("2006-01-02 03:04:05", to)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, errors.New("to query parameter must be in the format 2006-01-02 03:04:05"))
+	}
+
 	// Add the user to the logging context to make the logs easier to read.
 	log = log.WithFields(logrus.Fields{"user": user})
 
@@ -140,7 +158,7 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 	log.Debugf("userID set to %s", userID)
 
 	// Get the list of the user's analyses that have a millicores_reserved value, a start date, and an end date.
-	analyses, err = d.AdminAllCalculableAnalyses(context, userID)
+	analyses, err = d.AdminAllCalculableAnalyses(context, userID, fromDate, toDate)
 	if err == sql.ErrNoRows || len(analyses) == 0 {
 		return echo.NewHTTPError(http.StatusNotFound, errors.New("no calculable analyses found"))
 	} else if err != nil {

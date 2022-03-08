@@ -92,7 +92,7 @@ type CalculableAnalysis struct {
 	MillicoresReserved int64     `db:"millicores_reserved"`
 }
 
-func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID string) ([]CalculableAnalysis, error) {
+func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID string, from time.Time, to time.Time) ([]CalculableAnalysis, error) {
 	var analyses []CalculableAnalysis
 	const q = `
 		SELECT
@@ -104,9 +104,12 @@ func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID st
 		WHERE j.user_id = $1
 		AND j.millicores_reserved != 0
 		AND j.start_date IS NOT NULL
-		AND j.end_date IS NOT NULL;
+		AND j.end_date IS NOT NULL
+		AND j.start_date >= $2::timestamp
+		AND j.end_date <= $3::timestamp;
+
 	`
-	rows, err := d.db.QueryxContext(context, q, userID)
+	rows, err := d.db.QueryxContext(context, q, userID, from, to)
 	if err != nil {
 		return nil, err
 	}
