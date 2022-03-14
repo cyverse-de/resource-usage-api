@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"net/http"
@@ -48,58 +47,6 @@ func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
 			log.Debugf("received status is %s, ignoring", state)
 		}
 	}
-}
-
-const CPUHoursAttr = "cpu.hours"
-const CPUHoursUnit = "cpu hours"
-
-func sendMsgCB(dbClient *sqlx.DB, a *amqp.AMQP, routingKey string) worker.MessageSender {
-	dedb := db.New(dbClient)
-	return func(workItem *db.CPUUsageWorkItem) {
-		var err error
-
-		userID := workItem.CreatedBy
-
-		username, err := dedb.Username(context.Background(), userID)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-
-		log = log.WithFields(logrus.Fields{"context": "send message callback", "user": username})
-
-		log.Debug("getting current CPU hours")
-		currentCPUHours, err := dedb.CurrentCPUHoursForUser(context.Background(), username)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		log.Debugf("current CPU hours: %s", currentCPUHours.Total.String())
-
-		update := &worker.UsageUpdate{
-			Attribute: CPUHoursAttr,
-			Value:     currentCPUHours.Total.String(),
-			Unit:      CPUHoursUnit,
-			Username:  username,
-			UserID:    userID,
-		}
-
-		log.Debug("marshalling update")
-		marshalled, err := json.Marshal(update)
-		if err != nil {
-			log.Error(err)
-			return
-		}
-		log.Debug("done marshalling update")
-
-		log.Debug("sending update")
-		if err = a.Send(routingKey, marshalled); err != nil {
-			log.Error(err)
-			return
-		}
-		log.Debug("done sending update")
-	}
-
 }
 
 func main() {
@@ -243,6 +190,8 @@ func main() {
 		UserSuffix:               userSuffix,
 		DataUsageBaseURL:         *dataUsageBase,
 		CurrentDataUsageEndpoint: *dataUsageCurrentSuffix,
+		AMQPClient:               amqpClient,
+		AMQPUsageRoutingKey:      *usageRoutingKey,
 		QMSEnabled:               qmsEnabled,
 		QMSBaseURL:               qmsBaseURL,
 	}
@@ -259,7 +208,7 @@ func main() {
 		ClaimLifetime:           claimLifetime,
 		WorkSeekingLifetime:     seekingLifetime,
 		NewUserTotalInterval:    newUserTotalInterval,
-		MessageSender:           sendMsgCB(dbconn, amqpClient, *usageRoutingKey),
+		MessageSender:           app.SendTotalCallback(),
 	}
 
 	log.Infof("worker name is %s", workerConfig.Name)

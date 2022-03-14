@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -14,13 +15,15 @@ var log = logging.Log.WithFields(logrus.Fields{"package": "internal"})
 
 // App encapsulates the application logic.
 type App struct {
-	database         *sqlx.DB
-	router           *echo.Echo
-	userSuffix       string
-	dataUsageBase    string
-	dataUsageCurrent string
-	qmsBaseURL       string
-	qmsEnabled       bool
+	database            *sqlx.DB
+	router              *echo.Echo
+	userSuffix          string
+	dataUsageBase       string
+	dataUsageCurrent    string
+	amqpClient          *amqp.AMQP
+	amqpUsageRoutingKey string
+	qmsBaseURL          string
+	qmsEnabled          bool
 }
 
 // AppConfiguration contains the settings needed to configure the App.
@@ -28,6 +31,8 @@ type AppConfiguration struct {
 	UserSuffix               string
 	DataUsageBaseURL         string
 	CurrentDataUsageEndpoint string
+	AMQPClient               *amqp.AMQP
+	AMQPUsageRoutingKey      string
 	QMSEnabled               bool
 	QMSBaseURL               string
 }
@@ -41,13 +46,15 @@ func (a *App) FixUsername(username string) string {
 
 func New(db *sqlx.DB, config *AppConfiguration) *App {
 	app := &App{
-		database:         db,
-		router:           echo.New(),
-		userSuffix:       config.UserSuffix,
-		dataUsageBase:    config.DataUsageBaseURL,
-		dataUsageCurrent: config.CurrentDataUsageEndpoint,
-		qmsEnabled:       config.QMSEnabled,
-		qmsBaseURL:       config.QMSBaseURL,
+		database:            db,
+		router:              echo.New(),
+		userSuffix:          config.UserSuffix,
+		dataUsageBase:       config.DataUsageBaseURL,
+		dataUsageCurrent:    config.CurrentDataUsageEndpoint,
+		amqpClient:          config.AMQPClient,
+		amqpUsageRoutingKey: config.AMQPUsageRoutingKey,
+		qmsEnabled:          config.QMSEnabled,
+		qmsBaseURL:          config.QMSBaseURL,
 	}
 
 	return app
@@ -83,6 +90,7 @@ func (a *App) Router() *echo.Echo {
 	cpuadmin.GET("/totals/all", a.AdminAllCPUHoursTotalsHandler)
 	cpuadmin.POST("/recalculate/for/:username", a.AdminRecalculateCPUHoursTotalHandler)
 	cpuadmin.GET("/recalculate/can", a.AdminUsersWithCalculableAnalysesHandler)
+	cpuadmin.POST("/resend/total/for/:username", a.AdminResendTotalToQMSHandler)
 
 	events := cpuadmin.Group("/events")
 	events.GET("", a.AdminListEvents)

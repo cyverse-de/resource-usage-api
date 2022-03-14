@@ -218,6 +218,10 @@ func (w *Worker) Start(context context.Context) {
 				log.Error(err)
 			}
 			log.Debugf("worker %s is done resetting the CPU hours total", w.ID)
+
+		default:
+			log.Errorf("worker %s does not recognize event type %s", w.ID, workItem.EventType)
+			continue
 		}
 
 		if err = w.finishWorking(context, &workItem); err != nil {

@@ -122,7 +122,7 @@ func (d *Database) AdminAllCalculableAnalyses(context context.Context, userID st
 		if err != nil {
 			return nil, err
 		}
-		log.Debugf("id: %s; start_date: %s; end_date: %s; millicores_reserved: %s", a.ID, a.StartDate, a.EndDate, a.MillicoresReserved)
+		log.Debugf("id: %s; start_date: %s; end_date: %s; millicores_reserved: %d", a.ID, a.StartDate, a.EndDate, a.MillicoresReserved)
 
 		analyses = append(analyses, a)
 	}

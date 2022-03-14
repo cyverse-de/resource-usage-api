@@ -237,3 +237,26 @@ func (a *App) AdminUsersWithCalculableAnalysesHandler(c echo.Context) error {
 
 	return c.JSON(http.StatusOK, users)
 }
+
+func (a *App) AdminResendTotalToQMSHandler(c echo.Context) error {
+	var err error
+
+	var log = log.WithFields(logrus.Fields{"context": "resend total to QMS"})
+
+	username := c.Param("username")
+	if username == "" {
+		return echo.NewHTTPError(http.StatusBadRequest, "username must be set in the path")
+	}
+	username = a.FixUsername(username)
+
+	log = log.WithFields(logrus.Fields{"username": username})
+
+	log.Debug("resending total to QMS")
+	if err = a.SendTotal(username); err != nil {
+		log.Error(err)
+		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+	}
+	log.Info("resent total to QMS")
+
+	return nil
+}
