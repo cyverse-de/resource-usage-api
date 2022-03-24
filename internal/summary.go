@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel"
 
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/labstack/echo/v4"
@@ -18,6 +19,8 @@ import (
 )
 
 var client = http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+
+const otelName = "github.com/cyverse-de/resource-usage-api/internal"
 
 // UserDataUsage contains a user's current data usage, as returned by the
 // data-usage-api service.
@@ -123,11 +126,13 @@ func (a *App) GetUserSummary(c echo.Context) error {
 
 	log = log.WithFields(logrus.Fields{"user": user})
 
+	cpuCtx, cpuSpan := otel.Tracer(otelName).Start(context, "summary: CPU hours")
+
 	d := db.New(a.database)
 
 	var cpuHours *db.CPUHours
 
-	cpuHours, err = d.CurrentCPUHoursForUser(context, user)
+	cpuHours, err = d.CurrentCPUHoursForUser(cpuCtx, user)
 	if err == sql.ErrNoRows {
 		cpuHours = &db.CPUHours{}
 		cpuHoursError := APIError{
@@ -146,7 +151,9 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 		summary.Errors = append(summary.Errors, cpuHoursError)
 	}
+	cpuSpan.End()
 
+	dataUsageCtx, dataUsageSpan := otel.Tracer(otelName).Start(context, "summary: data usage")
 	// Put together the URL for the request in to the data-usage-api
 	dataUsageURL, err := url.Parse(a.dataUsageBase)
 	if err != nil {
@@ -164,7 +171,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		dataUsageURL.Path = fmt.Sprintf("/%s%s", user, a.dataUsageCurrent)
 
 		// Create the request to to the data-usage-api.
-		dataUsageReq, err = http.NewRequestWithContext(context, http.MethodGet, dataUsageURL.String(), nil)
+		dataUsageReq, err = http.NewRequestWithContext(dataUsageCtx, http.MethodGet, dataUsageURL.String(), nil)
 		if err != nil {
 			duOK = false
 			duError := APIError{
@@ -225,8 +232,10 @@ func (a *App) GetUserSummary(c echo.Context) error {
 			summary.Errors = append(summary.Errors, duError)
 		}
 	}
+	dataUsageSpan.End()
 
 	if a.qmsEnabled {
+		userPlanCtx, userPlanSpan := otel.Tracer(otelName).Start(context, "summary: user plan")
 		// Get the user plan
 		userPlanURL, err := url.Parse(a.qmsBaseURL)
 		if err != nil {
@@ -246,7 +255,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		log.Debug(userPlanURL.String())
 
 		if planOK {
-			userPlanReq, err = http.NewRequestWithContext(context, http.MethodGet, userPlanURL.String(), nil)
+			userPlanReq, err = http.NewRequestWithContext(userPlanCtx, http.MethodGet, userPlanURL.String(), nil)
 			if err != nil {
 				planOK = false
 				planErr := APIError{
@@ -307,6 +316,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 
 		summary.UserPlan = &up.Result
+		userPlanSpan.End()
 	} else {
 		summary.UserPlan = &UserPlan{}
 		summary.Errors = append(summary.Errors, APIError{
