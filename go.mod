@@ -9,24 +9,35 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/guregu/null v4.0.0+incompatible
 	github.com/jmoiron/sqlx v1.3.4
-	github.com/labstack/echo/v4 v4.6.0
+	github.com/labstack/echo/v4 v4.7.0
 	github.com/lib/pq v1.10.3
 	github.com/sirupsen/logrus v1.8.1
 	github.com/spf13/viper v1.9.0
 	github.com/streadway/amqp v1.0.0
+	github.com/uptrace/opentelemetry-go-extra/otelsql v0.1.10
+	github.com/uptrace/opentelemetry-go-extra/otelsqlx v0.1.10
+	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.30.0
+	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.30.0
+	go.opentelemetry.io/otel v1.6.0
+	go.opentelemetry.io/otel/exporters/jaeger v1.6.0
+	go.opentelemetry.io/otel/sdk v1.6.0
 	go.uber.org/multierr v1.7.0
-	golang.org/x/net v0.0.0-20210913180222-943fd674d43e
+	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f
 	gopkg.in/cyverse-de/messaging.v6 v6.0.0
 )
 
 require (
 	github.com/cyverse-de/model v0.0.0-20210921001837-2d6c66c37bc8 // indirect
+	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
+	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
-	github.com/mattn/go-colorable v0.1.8 // indirect
+	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mitchellh/mapstructure v1.4.2 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
@@ -40,11 +51,15 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
+	go.opentelemetry.io/otel/internal/metric v0.27.0 // indirect
+	go.opentelemetry.io/otel/metric v0.27.0 // indirect
+	go.opentelemetry.io/otel/trace v1.6.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5 // indirect
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c // indirect
-	golang.org/x/sys v0.0.0-20210910150752-751e447fb3d0 // indirect
+	golang.org/x/sys v0.0.0-20211103235746-7861aae1554b // indirect
 	golang.org/x/text v0.3.7 // indirect
+	golang.org/x/time v0.0.0-20201208040808-7e3f01d25324 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/cyverse-de/model.v4 v4.0.0-20191010001558-736b5a572acd // indirect
 	gopkg.in/ini.v1 v1.63.2 // indirect

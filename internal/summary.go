@@ -10,10 +10,14 @@ import (
 	"net/url"
 	"strings"
 
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 )
+
+var client = http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 
 // UserDataUsage contains a user's current data usage, as returned by the
 // data-usage-api service.
@@ -160,7 +164,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		dataUsageURL.Path = fmt.Sprintf("/%s%s", user, a.dataUsageCurrent)
 
 		// Create the request to to the data-usage-api.
-		dataUsageReq, err = http.NewRequest(http.MethodGet, dataUsageURL.String(), nil)
+		dataUsageReq, err = http.NewRequestWithContext(context, http.MethodGet, dataUsageURL.String(), nil)
 		if err != nil {
 			duOK = false
 			duError := APIError{
@@ -174,7 +178,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 
 	if duOK {
 		// Make the request to the data-usage-api. Close the body when the handler returns.
-		duResp, err = http.DefaultClient.Do(dataUsageReq)
+		duResp, err = client.Do(dataUsageReq)
 		if err != nil {
 			duOK = false
 			duError := APIError{
@@ -242,7 +246,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		log.Debug(userPlanURL.String())
 
 		if planOK {
-			userPlanReq, err = http.NewRequest(http.MethodGet, userPlanURL.String(), nil)
+			userPlanReq, err = http.NewRequestWithContext(context, http.MethodGet, userPlanURL.String(), nil)
 			if err != nil {
 				planOK = false
 				planErr := APIError{
@@ -255,7 +259,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 
 		if planOK {
-			userPlanResp, err = http.DefaultClient.Do(userPlanReq)
+			userPlanResp, err = client.Do(userPlanReq)
 			if err != nil {
 				planOK = false
 				planErr := APIError{

@@ -9,6 +9,8 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
+
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "internal"})
@@ -61,6 +63,8 @@ func New(db *sqlx.DB, config *AppConfiguration) *App {
 }
 
 func (a *App) Router() *echo.Echo {
+	a.router.Use(otelecho.Middleware("resource-usage-api"))
+
 	a.router.HTTPErrorHandler = logging.HTTPErrorHandler
 	a.router.GET("/", a.GreetingHandler).Name = "greeting"
 
