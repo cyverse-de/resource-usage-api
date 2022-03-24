@@ -172,8 +172,8 @@ func (w *Worker) Start(context context.Context) {
 			if err = database.DoneGettingWork(iterationCtx, w.ID); err != nil {
 				log.Error(err)
 			}
-			time.Sleep(30 * time.Second)
 			span.End()
+			time.Sleep(30 * time.Second)
 			continue
 		}
 
@@ -184,8 +184,8 @@ func (w *Worker) Start(context context.Context) {
 			if err = database.DoneGettingWork(iterationCtx, w.ID); err != nil {
 				log.Error(err)
 			}
-			time.Sleep(30 * time.Second)
 			span.End()
+			time.Sleep(30 * time.Second)
 			continue
 		}
 
