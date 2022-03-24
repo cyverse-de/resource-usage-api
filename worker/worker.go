@@ -9,8 +9,12 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.uber.org/multierr"
 )
+
+const otelName = "github.com/cyverse-de/resource-usage-api/worker"
 
 var log = logging.Log.WithFields(
 	logrus.Fields{
@@ -146,26 +150,30 @@ func (w *Worker) Start(context context.Context) {
 	database := db.New(w.db)
 
 	for {
+		iterationCtx, span := otel.Tracer(otelName).Start(context, "worker iteration")
+		span.SetAttributes(attribute.String("worker.name", w.Name), attribute.String("worker.id", w.ID))
 		now := time.Now()
 
 		log := log.WithFields(logrus.Fields{"context": "processing work items"})
 		log.Debugf("start looking for work items")
 
-		if err = database.GettingWork(context, w.ID, now.Add(w.WorkSeekingLifetime)); err != nil {
+		if err = database.GettingWork(iterationCtx, w.ID, now.Add(w.WorkSeekingLifetime)); err != nil {
 			log.Error(err)
+			span.End()
 			continue
 		}
 
 		log.Infof("worker %s is looking for work", w.ID)
 
 		// Grab all eligible work items from the databse.
-		workItems, err := database.UnclaimedUnprocessedEvents(context)
+		workItems, err := database.UnclaimedUnprocessedEvents(iterationCtx)
 		if err != nil {
 			log.Error(err)
-			if err = database.DoneGettingWork(context, w.ID); err != nil {
+			if err = database.DoneGettingWork(iterationCtx, w.ID); err != nil {
 				log.Error(err)
 			}
 			time.Sleep(30 * time.Second)
+			span.End()
 			continue
 		}
 
@@ -173,25 +181,28 @@ func (w *Worker) Start(context context.Context) {
 
 		// Can only do something if there's something returned.
 		if len(workItems) == 0 {
-			if err = database.DoneGettingWork(context, w.ID); err != nil {
+			if err = database.DoneGettingWork(iterationCtx, w.ID); err != nil {
 				log.Error(err)
 			}
 			time.Sleep(30 * time.Second)
+			span.End()
 			continue
 		}
 
 		// If multiple items are retrieved to work on, only process the first one
 		// this may need to change in the future so that we can process items in a batch.
 		workItem := workItems[0]
-		if err = w.claimWorkItem(context, &workItem); err != nil {
+		if err = w.claimWorkItem(iterationCtx, &workItem); err != nil {
 			log.Error(err)
+			span.End()
 			continue
 		}
 
 		log.Infof("worker %s has claimed work item %s", w.ID, workItem.ID)
 
-		if err = w.transitionToWorkingState(context); err != nil {
+		if err = w.transitionToWorkingState(iterationCtx); err != nil {
 			log.Error(err)
+			span.End()
 			continue
 		}
 
@@ -200,37 +211,39 @@ func (w *Worker) Start(context context.Context) {
 		switch workItem.EventType {
 		case db.CPUHoursAdd:
 			log.Debugf("worker %s is adding to the CPU hours total", w.ID)
-			if err = w.AddCPUHours(context, &workItem); err != nil {
+			if err = w.AddCPUHours(iterationCtx, &workItem); err != nil {
 				log.Error(err)
 			}
 			log.Debugf("worker %s is done adding to the CPU hours total", w.ID)
 
 		case db.CPUHoursSubtract:
 			log.Debugf("worker %s is subtracting from the CPU hours total", w.ID)
-			if err = w.SubtractCPUHours(context, &workItem); err != nil {
+			if err = w.SubtractCPUHours(iterationCtx, &workItem); err != nil {
 				log.Error(err)
 			}
 			log.Debugf("worker %s is done subtracting from the CPU hours total", w.ID)
 
 		case db.CPUHoursReset:
 			log.Debugf("worker %s is resetting the CPU hours total", w.ID)
-			if err = w.ResetCPUHours(context, &workItem); err != nil {
+			if err = w.ResetCPUHours(iterationCtx, &workItem); err != nil {
 				log.Error(err)
 			}
 			log.Debugf("worker %s is done resetting the CPU hours total", w.ID)
 
 		default:
 			log.Errorf("worker %s does not recognize event type %s", w.ID, workItem.EventType)
+			span.End()
 			continue
 		}
 
-		if err = w.finishWorking(context, &workItem); err != nil {
+		if err = w.finishWorking(iterationCtx, &workItem); err != nil {
 			log.Error(err)
 		}
 
 		w.MessageSender(&workItem)
 
 		log.Infof("worker %s is finished with work item %s", w.ID, workItem.ID)
+		span.End()
 	}
 }
 
