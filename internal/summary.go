@@ -277,6 +277,9 @@ func (a *App) GetUserSummary(c echo.Context) error {
 					ErrorCode: http.StatusInternalServerError,
 				}
 				summary.Errors = append(summary.Errors, planErr)
+				if userPlanResp.Body != nil {
+					userPlanResp.Body.Close()
+				}
 			} else if userPlanResp.StatusCode < 200 || userPlanResp.StatusCode > 299 {
 				planOK = false
 				planErr := APIError{
@@ -285,6 +288,9 @@ func (a *App) GetUserSummary(c echo.Context) error {
 					ErrorCode: userPlanResp.StatusCode,
 				}
 				summary.Errors = append(summary.Errors, planErr)
+				if userPlanResp.Body != nil {
+					userPlanResp.Body.Close()
+				}
 			}
 		}
 
