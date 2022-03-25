@@ -240,6 +240,7 @@ func (a *App) AdminUsersWithCalculableAnalysesHandler(c echo.Context) error {
 
 func (a *App) AdminResendTotalToQMSHandler(c echo.Context) error {
 	var err error
+	context := c.Request().Context()
 
 	var log = log.WithFields(logrus.Fields{"context": "resend total to QMS"})
 
@@ -252,7 +253,7 @@ func (a *App) AdminResendTotalToQMSHandler(c echo.Context) error {
 	log = log.WithFields(logrus.Fields{"username": username})
 
 	log.Debug("resending total to QMS")
-	if err = a.SendTotal(username); err != nil {
+	if err = a.SendTotal(context, username); err != nil {
 		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

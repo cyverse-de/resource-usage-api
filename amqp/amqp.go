@@ -1,12 +1,13 @@
 package amqp
 
 import (
+	"context"
 	"encoding/json"
 
+	"github.com/cyverse-de/messaging/v9"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
-	"gopkg.in/cyverse-de/messaging.v6"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "amqp"})
@@ -33,7 +34,7 @@ type analysisUpdateMsg struct {
 	Sender  string             `json:"Sender"`
 }
 
-type HandlerFn func(externalID string, state messaging.JobState)
+type HandlerFn func(context context.Context, externalID string, state messaging.JobState)
 
 type AMQP struct {
 	client  *messaging.Client
@@ -73,7 +74,7 @@ func New(config *Configuration, handler HandlerFn) (*AMQP, error) {
 	return a, err
 }
 
-func (a *AMQP) recv(delivery amqp.Delivery) {
+func (a *AMQP) recv(context context.Context, delivery amqp.Delivery) {
 	var (
 		update analysisUpdateMsg
 		err    error
@@ -108,13 +109,13 @@ func (a *AMQP) recv(delivery amqp.Delivery) {
 		return
 	}
 
-	a.handler(update.Job.UUID, update.State)
+	a.handler(context, update.Job.UUID, update.State)
 }
 
-func (a *AMQP) Send(routingKey string, data []byte) error {
+func (a *AMQP) Send(context context.Context, routingKey string, data []byte) error {
 	log = log.WithFields(logrus.Fields{"context": "sending usage to QMS"})
 	log.Debugf("routing key: %s, message: %s", routingKey, string(data))
-	return a.client.Publish(routingKey, data)
+	return a.client.PublishContext(context, routingKey, data)
 }
 
 func (a *AMQP) Listen() {

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cyverse-de/configurate"
+	"github.com/cyverse-de/messaging/v9"
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/cpuhours"
 	"github.com/cyverse-de/resource-usage-api/db"
@@ -21,7 +22,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"golang.org/x/net/context"
-	"gopkg.in/cyverse-de/messaging.v6"
 
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
 	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
@@ -41,9 +41,8 @@ func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
 	dedb := db.New(dbClient)
 	cpuhours := cpuhours.New(dedb)
 
-	return func(externalID string, state messaging.JobState) {
+	return func(context context.Context, externalID string, state messaging.JobState) {
 		var err error
-		context := context.Background()
 
 		log = log.WithFields(logrus.Fields{"externalID": externalID})
 

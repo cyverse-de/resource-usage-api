@@ -14,12 +14,12 @@ import (
 const CPUHoursAttr = "cpu.hours"
 const CPUHoursUnit = "cpu hours"
 
-func (a *App) SendTotal(username string) error {
+func (a *App) SendTotal(context context.Context, username string) error {
 	var err error
 
 	dedb := db.New(a.database)
 
-	userID, err := dedb.UserID(context.Background(), username)
+	userID, err := dedb.UserID(context, username)
 	if err != nil {
 		return err
 	}
@@ -27,7 +27,7 @@ func (a *App) SendTotal(username string) error {
 	log = log.WithFields(logrus.Fields{"context": "send message callback", "user": username})
 
 	log.Debug("getting current CPU hours")
-	currentCPUHours, err := dedb.CurrentCPUHoursForUser(context.Background(), username)
+	currentCPUHours, err := dedb.CurrentCPUHoursForUser(context, username)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func (a *App) SendTotal(username string) error {
 	log.Debug("done marshalling update")
 
 	log.Debug("sending update")
-	if err = a.amqpClient.Send(a.amqpUsageRoutingKey, marshalled); err != nil {
+	if err = a.amqpClient.Send(context, a.amqpUsageRoutingKey, marshalled); err != nil {
 		return err
 	}
 	log.Debug("done sending update")
@@ -58,8 +58,8 @@ func (a *App) SendTotal(username string) error {
 }
 
 func (a *App) SendTotalCallback() worker.MessageSender {
-	return func(workItem *db.CPUUsageWorkItem) {
-		if err := a.SendTotal(workItem.CreatedBy); err != nil {
+	return func(context context.Context, workItem *db.CPUUsageWorkItem) {
+		if err := a.SendTotal(context, workItem.CreatedBy); err != nil {
 			log.Error(err)
 		}
 	}

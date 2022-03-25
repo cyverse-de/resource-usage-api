@@ -23,7 +23,7 @@ var log = logging.Log.WithFields(
 )
 
 // MessageSender - handler for sending update messages based on a work item.
-type MessageSender func(*db.CPUUsageWorkItem)
+type MessageSender func(context.Context, *db.CPUUsageWorkItem)
 
 // UsageUpdate contains the info to be sent by MessageSender
 type UsageUpdate struct {
@@ -240,7 +240,7 @@ func (w *Worker) Start(context context.Context) {
 			log.Error(err)
 		}
 
-		w.MessageSender(&workItem)
+		w.MessageSender(iterationCtx, &workItem)
 
 		log.Infof("worker %s is finished with work item %s", w.ID, workItem.ID)
 		span.End()
