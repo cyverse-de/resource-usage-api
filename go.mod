@@ -5,7 +5,7 @@ go 1.17
 require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9
-	github.com/cyverse-de/messaging/v9 v9.1.3
+	github.com/cyverse-de/messaging/v9 v9.1.4
 	github.com/go-co-op/gocron v1.9.0
 	github.com/google/uuid v1.3.0
 	github.com/guregu/null v4.0.0+incompatible
