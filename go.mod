@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9
+	github.com/cyverse-de/go-mod/otelutils v0.0.2
 	github.com/cyverse-de/messaging/v9 v9.1.4
 	github.com/go-co-op/gocron v1.9.0
 	github.com/google/uuid v1.3.0
@@ -20,8 +21,6 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho v0.30.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.30.0
 	go.opentelemetry.io/otel v1.6.1
-	go.opentelemetry.io/otel/exporters/jaeger v1.6.0
-	go.opentelemetry.io/otel/sdk v1.6.0
 	go.uber.org/multierr v1.7.0
 	golang.org/x/net v0.0.0-20211015210444-4f30a5c0130f
 )
@@ -51,8 +50,10 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.1 // indirect
+	go.opentelemetry.io/otel/exporters/jaeger v1.6.1 // indirect
 	go.opentelemetry.io/otel/internal/metric v0.27.0 // indirect
 	go.opentelemetry.io/otel/metric v0.27.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.6.1 // indirect
 	go.opentelemetry.io/otel/trace v1.6.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.0.0-20211108221036-ceb1ce70b4fa // indirect
