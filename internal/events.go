@@ -14,6 +14,7 @@ import (
 
 func (a *App) AdminListEvents(c echo.Context) error {
 	context := c.Request().Context()
+	log = log.WithContext(context)
 	d := db.New(a.database)
 	results, err := d.ListEvents(context)
 	if err == sql.ErrNoRows || len(results) == 0 {
@@ -27,6 +28,7 @@ func (a *App) AdminListEvents(c echo.Context) error {
 
 func (a *App) AdminListAllUserEventsHandler(c echo.Context) error {
 	context := c.Request().Context()
+	log = log.WithContext(context)
 
 	user := c.Param("username")
 	if user == "" {
@@ -48,6 +50,7 @@ func (a *App) AdminListAllUserEventsHandler(c echo.Context) error {
 
 func (a *App) AdminGetEventHandler(c echo.Context) error {
 	context := c.Request().Context()
+	log = log.WithContext(context)
 
 	id := c.Param("id")
 	if id == "" {
@@ -68,6 +71,7 @@ func (a *App) AdminGetEventHandler(c echo.Context) error {
 
 func (a *App) AdminUpdateEventHandler(c echo.Context) error {
 	context := c.Request().Context()
+	log = log.WithContext(context)
 
 	id := c.Param("id")
 	if id == "" {
@@ -104,6 +108,7 @@ func (a *App) AdminUpdateEventHandler(c echo.Context) error {
 
 func (a *App) AdminDeleteEventHandler(c echo.Context) error {
 	context := c.Request().Context()
+	log = log.WithContext(context)
 
 	id := c.Param("id")
 	if id == "" {

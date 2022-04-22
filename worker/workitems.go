@@ -15,6 +15,7 @@ import (
 type totalUpdater func(*apd.Decimal, *apd.Decimal) (*apd.Decimal, error)
 
 func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry, workItem *db.CPUUsageWorkItem, updateFn totalUpdater) error {
+	log = log.WithContext(context)
 	tx, err := w.db.Beginx()
 	if err != nil {
 		if rerr := tx.Rollback(); rerr != nil {
@@ -117,7 +118,7 @@ func (w *Worker) updateCPUHoursTotal(context context.Context, log *logrus.Entry,
 }
 
 func (w *Worker) AddCPUHours(context context.Context, workItem *db.CPUUsageWorkItem) error {
-	log := logging.Log.WithFields(logrus.Fields{"context": "adding CPU hours"})
+	log := logging.Log.WithFields(logrus.Fields{"context": "adding CPU hours"}).WithContext(context)
 	return w.updateCPUHoursTotal(context, log, workItem, func(current *apd.Decimal, add *apd.Decimal) (*apd.Decimal, error) {
 		total := apd.New(0, 0)
 		_, err := apd.BaseContext.Add(total, current, add)
@@ -129,7 +130,7 @@ func (w *Worker) AddCPUHours(context context.Context, workItem *db.CPUUsageWorkI
 }
 
 func (w *Worker) SubtractCPUHours(context context.Context, workItem *db.CPUUsageWorkItem) error {
-	log := logging.Log.WithFields(logrus.Fields{"context": "subtracting CPU hours"})
+	log := logging.Log.WithFields(logrus.Fields{"context": "subtracting CPU hours"}).WithContext(context)
 	return w.updateCPUHoursTotal(context, log, workItem, func(current *apd.Decimal, subtract *apd.Decimal) (*apd.Decimal, error) {
 		total := apd.New(0, 0)
 		_, err := apd.BaseContext.WithPrecision(15).Sub(total, current, subtract)
@@ -141,7 +142,7 @@ func (w *Worker) SubtractCPUHours(context context.Context, workItem *db.CPUUsage
 }
 
 func (w *Worker) ResetCPUHours(context context.Context, workItem *db.CPUUsageWorkItem) error {
-	log := logging.Log.WithFields(logrus.Fields{"context": "resetting CPU hours"})
+	log := logging.Log.WithFields(logrus.Fields{"context": "resetting CPU hours"}).WithContext(context)
 	return w.updateCPUHoursTotal(context, log, workItem, func(_ *apd.Decimal, newValue *apd.Decimal) (*apd.Decimal, error) {
 		return newValue, nil
 	})

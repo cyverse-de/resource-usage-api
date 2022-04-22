@@ -63,6 +63,10 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 		err      error
 		database *db.Database
 	)
+	ctx, span := otel.Tracer(otelName).Start(context, "worker.New")
+	defer span.End()
+
+	var log = log.WithContext(ctx)
 
 	worker := Worker{
 		ClaimLifetime:        config.ClaimLifetime,
@@ -75,18 +79,21 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 
 	database = db.New(worker.db)
 
-	worker.ID, err = database.RegisterWorker(context, worker.Name, time.Now().Add(config.ExpirationInterval))
+	worker.ID, err = database.RegisterWorker(ctx, worker.Name, time.Now().Add(config.ExpirationInterval))
 	if err != nil {
 		return nil, err
 	}
 
 	worker.Scheduler = gocron.NewScheduler(time.UTC)
 
+	// use passed-in context, not the span context, for these scheduled jobs
 	worker.Scheduler.Every(config.RefreshInterval).Do(func() { // nolint:errcheck
-		log := log.WithFields(logrus.Fields{"context": "refreshing worker registration"})
+		ctx, span := otel.Tracer(otelName).Start(context, "worker refresh")
+		defer span.End()
+		log := log.WithFields(logrus.Fields{"context": "refreshing worker registration"}).WithContext(ctx)
 		log.Info("start refreshing worker registrations")
 
-		newTime, err := database.RefreshWorkerRegistration(context, worker.ID, worker.Name, config.ExpirationInterval)
+		newTime, err := database.RefreshWorkerRegistration(ctx, worker.ID, worker.Name, config.ExpirationInterval)
 		if err != nil {
 			log.Error(err)
 			return
@@ -95,10 +102,12 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 	})
 
 	worker.Scheduler.Every(config.WorkerPurgeInterval).Do(func() { // nolint:errcheck
-		log := log.WithFields(logrus.Fields{"context": "purging expired workers"})
+		ctx, span := otel.Tracer(otelName).Start(context, "worker purge")
+		defer span.End()
+		log := log.WithFields(logrus.Fields{"context": "purging expired workers"}).WithContext(ctx)
 		log.Info("start purging expired workers")
 
-		numExpired, err := database.PurgeExpiredWorkers(context)
+		numExpired, err := database.PurgeExpiredWorkers(ctx)
 		if err != nil {
 			log.Error(err)
 			return
@@ -106,7 +115,7 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 		log.Infof("purged %d expired workers", numExpired)
 
 		log.Info("resetting work claims for inactive workers")
-		resetClaims, err := database.ResetWorkClaimsForInactiveWorkers(context)
+		resetClaims, err := database.ResetWorkClaimsForInactiveWorkers(ctx)
 		if err != nil {
 			log.Error(err)
 			return
@@ -115,10 +124,12 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 	})
 
 	worker.Scheduler.Every(config.WorkSeekerPurgeInterval).Do(func() { // nolint:errcheck
-		log := log.WithFields(logrus.Fields{"context": "purging expired work seekers"})
+		ctx, span := otel.Tracer(otelName).Start(context, "worker seeker purge")
+		defer span.End()
+		log := log.WithFields(logrus.Fields{"context": "purging expired work seekers"}).WithContext(ctx)
 		log.Info("start purging expired work seekers")
 
-		numExpiredWorkers, err := database.PurgeExpiredWorkSeekers(context)
+		numExpiredWorkers, err := database.PurgeExpiredWorkSeekers(ctx)
 		if err != nil {
 			log.Error(err)
 			return
@@ -127,10 +138,12 @@ func New(context context.Context, config *Config, dbAccessor *sqlx.DB) (*Worker,
 	})
 
 	worker.Scheduler.Every(config.WorkClaimPurgeInterval).Do(func() { // nolint:errcheck
-		log := log.WithFields(logrus.Fields{"context": "purging expired work claims"})
+		ctx, span := otel.Tracer(otelName).Start(context, "work claim purge")
+		defer span.End()
+		log := log.WithFields(logrus.Fields{"context": "purging expired work claims"}).WithContext(ctx)
 		log.Info("start purging expired work claims")
 
-		numWorkClaims, err := database.PurgeExpiredWorkClaims(context)
+		numWorkClaims, err := database.PurgeExpiredWorkClaims(ctx)
 		if err != nil {
 			log.Error(err)
 			return
@@ -154,7 +167,7 @@ func (w *Worker) Start(context context.Context) {
 		span.SetAttributes(attribute.String("worker.name", w.Name), attribute.String("worker.id", w.ID))
 		now := time.Now()
 
-		log := log.WithFields(logrus.Fields{"context": "processing work items"})
+		log := log.WithFields(logrus.Fields{"context": "processing work items"}).WithContext(iterationCtx)
 		log.Debugf("start looking for work items")
 
 		if err = database.GettingWork(iterationCtx, w.ID, now.Add(w.WorkSeekingLifetime)); err != nil {
@@ -251,7 +264,7 @@ func (w *Worker) Start(context context.Context) {
 // something in a transaction, which will hopefully prevent race conditions with the code that
 // purges expired work claims and workers.
 func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWorkItem) error {
-	log := log.WithFields(logrus.Fields{"context": "claiming work item"})
+	log := log.WithFields(logrus.Fields{"context": "claiming work item"}).WithContext(context)
 
 	tx, err := w.db.Beginx()
 	if err != nil {
@@ -300,7 +313,7 @@ func (w *Worker) claimWorkItem(context context.Context, workItem *db.CPUUsageWor
 // getting work starting work in a transaction, which should avoid race conditions
 // in the clean up functions that run periodically.
 func (w *Worker) transitionToWorkingState(context context.Context) error {
-	log := log.WithFields(logrus.Fields{"context": "claiming work item"})
+	log := log.WithFields(logrus.Fields{"context": "claiming work item"}).WithContext(context)
 
 	tx, err := w.db.Beginx()
 	if err != nil {
@@ -351,7 +364,7 @@ func (w *Worker) transitionToWorkingState(context context.Context) error {
 }
 
 func (w *Worker) finishWorking(context context.Context, workItem *db.CPUUsageWorkItem) error {
-	log := logging.Log.WithFields(logrus.Fields{"context": "mark work item finished"})
+	log := logging.Log.WithFields(logrus.Fields{"context": "mark work item finished"}).WithContext(context)
 
 	// Use a transaction here to avoid causing a race condition that
 	// could cause the worker to get purged between steps.

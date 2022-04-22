@@ -115,7 +115,6 @@ func (a *App) GetUserSummary(c echo.Context) error {
 	duOK = true
 	planOK = true
 
-	log = log.WithFields(logrus.Fields{"context": "get user summary"})
 	context := c.Request().Context()
 
 	user := c.Param("username")
@@ -124,7 +123,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 	}
 	user = a.FixUsername(user)
 
-	log = log.WithFields(logrus.Fields{"user": user})
+	log = log.WithFields(logrus.Fields{"context": "get user summary", "user": user}).WithContext(context)
 
 	cpuCtx, cpuSpan := otel.Tracer(otelName).Start(context, "summary: CPU hours")
 
@@ -142,7 +141,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 		summary.Errors = append(summary.Errors, cpuHoursError)
 	} else if err != nil {
-		log.Error(err)
+		log.WithContext(cpuCtx).Error(err)
 		cpuHours = &db.CPUHours{}
 		cpuHoursError := APIError{
 			Field:     "cpu_usage",

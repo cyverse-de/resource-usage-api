@@ -23,6 +23,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cyverse-de/go-mod/otelutils"
+	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
 	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
@@ -41,7 +42,7 @@ func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
 	return func(context context.Context, externalID string, state messaging.JobState) {
 		var err error
 
-		log = log.WithFields(logrus.Fields{"externalID": externalID})
+		log = log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(context)
 
 		if state == messaging.FailedState || state == messaging.SucceededState {
 			log.Debug("calculating CPU hours for analysis")
@@ -80,6 +81,9 @@ func main() {
 	)
 
 	flag.Parse()
+
+	logrus.AddHook(otellogrus.NewHook())
+
 	logging.SetupLogging(*logLevel)
 
 	var tracerCtx, cancel = context.WithCancel(context.Background())

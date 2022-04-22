@@ -29,6 +29,7 @@ func totalReplacer(_ *apd.Decimal, workItem *db.CPUUsageWorkItem) (*apd.Decimal,
 }
 
 func (a *App) updateCPUHours(context context.Context, workItem *db.CPUUsageWorkItem, updater totalUpdaterFn) error {
+	var log = log.WithContext(context)
 	// Open a transaction.
 	tx, err := a.database.Beginx()
 	if err != nil {
@@ -136,6 +137,7 @@ func (a *App) totalHandler(c echo.Context, eventType db.EventType) error {
 }
 
 func (a *App) AddToTotalHandler(c echo.Context) error {
+	var log = log.WithContext(c.Request().Context())
 	err := a.totalHandler(c, db.CPUHoursAdd)
 	if err != nil {
 		log.Error(err)
@@ -144,6 +146,7 @@ func (a *App) AddToTotalHandler(c echo.Context) error {
 }
 
 func (a *App) SubtractFromTotalHandler(c echo.Context) error {
+	var log = log.WithContext(c.Request().Context())
 	err := a.totalHandler(c, db.CPUHoursSubtract)
 	if err != nil {
 		log.Error(err)
@@ -152,6 +155,7 @@ func (a *App) SubtractFromTotalHandler(c echo.Context) error {
 }
 
 func (a *App) ResetTotalHandler(c echo.Context) error {
+	var log = log.WithContext(c.Request().Context())
 	err := a.totalHandler(c, db.CPUHoursReset)
 	if err != nil {
 		log.Error(err)

@@ -21,6 +21,7 @@ func (a *App) GreetingHandler(context echo.Context) error {
 // CurrentCPUHours looks up the total CPU hours for the current recording period.
 func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
 	context := c.Request().Context()
+	var log = log.WithContext(context)
 
 	user := c.Param("username")
 	if user == "" {
@@ -45,6 +46,7 @@ func (a *App) CurrentCPUHoursHandler(c echo.Context) error {
 // AllCPUHoursHandler returns all of the total CPU hours totals, regardless of recording period.
 func (a *App) AllCPUHoursHandler(c echo.Context) error {
 	context := c.Request().Context()
+	var log = log.WithContext(context)
 
 	user := c.Param("username")
 	if user == "" {
@@ -71,6 +73,7 @@ func (a *App) AllCPUHoursHandler(c echo.Context) error {
 // AdminAllCurrentCPUHoursTotalsHandler looks up all of the total CPU hours totals for all users.
 func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
 	context := c.Request().Context()
+	var log = log.WithContext(context)
 
 	d := db.New(a.database)
 	results, err := d.AdminAllCurrentCPUHours(context)
@@ -87,6 +90,7 @@ func (a *App) AdminAllCurrentCPUHoursHandler(c echo.Context) error {
 // AdminAllCPUHoursTotalsHandler returns all of the total CPU hours totals for all recording periods, regardless of user.
 func (a *App) AdminAllCPUHoursTotalsHandler(c echo.Context) error {
 	context := c.Request().Context()
+	var log = log.WithContext(context)
 
 	d := db.New(a.database)
 	results, err := d.AdminAllCPUHours(context)
@@ -111,7 +115,7 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 	)
 	context := c.Request().Context()
 
-	var log = log.WithFields(logrus.Fields{"context": "recalulcating cpu hours total"})
+	var log = log.WithFields(logrus.Fields{"context": "recalulcating cpu hours total"}).WithContext(context)
 
 	// Make sure the username has the domain suffix attached.
 	user := c.Param("username")
@@ -222,7 +226,7 @@ func (a *App) AdminUsersWithCalculableAnalysesHandler(c echo.Context) error {
 	)
 	context := c.Request().Context()
 
-	var log = log.WithFields(logrus.Fields{"context": "users with calculable analyses"})
+	var log = log.WithFields(logrus.Fields{"context": "users with calculable analyses"}).WithContext(context)
 
 	d := db.New(a.database)
 
@@ -242,7 +246,7 @@ func (a *App) AdminResendTotalToQMSHandler(c echo.Context) error {
 	var err error
 	context := c.Request().Context()
 
-	var log = log.WithFields(logrus.Fields{"context": "resend total to QMS"})
+	var log = log.WithFields(logrus.Fields{"context": "resend total to QMS"}).WithContext(context)
 
 	username := c.Param("username")
 	if username == "" {

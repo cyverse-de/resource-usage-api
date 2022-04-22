@@ -60,7 +60,7 @@ func (a *App) SendTotal(context context.Context, username string) error {
 func (a *App) SendTotalCallback() worker.MessageSender {
 	return func(context context.Context, workItem *db.CPUUsageWorkItem) {
 		if err := a.SendTotal(context, workItem.CreatedBy); err != nil {
-			log.Error(err)
+			log.WithContext(context).Error(err)
 		}
 	}
 }
