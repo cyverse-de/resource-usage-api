@@ -115,11 +115,9 @@ func main() {
 		StrictMerge: false,
 		FileType:    cfg.YAML,
 	})
-
-	// config, err = configurate.Init(*configPath)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	if err != nil {
+		log.Fatal(err)
+	}
 	log.Infof("done reading configuration from %s", *configPath)
 
 	dbURI := config.String("db.uri")
