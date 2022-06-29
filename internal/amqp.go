@@ -2,10 +2,9 @@ package internal
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"strings"
 
+	"github.com/cyverse-de/go-mod/gotelnats"
+	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/worker"
 	"github.com/sirupsen/logrus"
@@ -19,11 +18,6 @@ func (a *App) SendTotal(context context.Context, username string) error {
 
 	dedb := db.New(a.database)
 
-	userID, err := dedb.UserID(context, username)
-	if err != nil {
-		return err
-	}
-
 	log = log.WithFields(logrus.Fields{"context": "send message callback", "user": username})
 
 	log.Debug("getting current CPU hours")
@@ -33,23 +27,14 @@ func (a *App) SendTotal(context context.Context, username string) error {
 	}
 	log.Debugf("current CPU hours: %s", currentCPUHours.Total.String())
 
-	update := &worker.UsageUpdate{
-		Attribute: CPUHoursAttr,
-		Value:     currentCPUHours.Total.String(),
-		Unit:      CPUHoursUnit,
-		Username:  strings.TrimSuffix(username, fmt.Sprintf("@%s", a.userSuffix)),
-		UserID:    userID,
-	}
-
-	log.Debug("marshalling update")
-	marshalled, err := json.Marshal(update)
+	v, err := currentCPUHours.Total.Float64()
 	if err != nil {
 		return err
 	}
-	log.Debug("done marshalling update")
+	update := pbinit.NewAddUsage(username, "cpu.hours", "ADD", v)
 
 	log.Debug("sending update")
-	if err = a.amqpClient.Send(context, a.amqpUsageRoutingKey, marshalled); err != nil {
+	if err = gotelnats.Publish(context, a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
 		return err
 	}
 	log.Debug("done sending update")
