@@ -156,7 +156,7 @@ func main() {
 
 	natsCluster := config.String("nats.cluster")
 	if natsCluster == "" {
-		log.Fatalf("The %s_NATS_CLUSTER environment variable or nats.cluster configuration value must be set", *envPrefix)
+		log.Fatalf("The %sNATS_CLUSTER environment variable or nats.cluster configuration value must be set", *envPrefix)
 	}
 
 	workerLifetime, err := time.ParseDuration(*workerLifetimeFlag)
