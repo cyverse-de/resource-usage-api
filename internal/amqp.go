@@ -45,6 +45,9 @@ func (a *App) SendTotal(context context.Context, userID string) error {
 	defer span.End()
 
 	log.Debug("sending update")
+	log.Debugf("context %+v", context)
+	log.Debugf("client %+v", a.natsClient)
+	log.Debugf("update %+v", update)
 	if err = gotelnats.Publish(context, a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
 		return err
 	}
