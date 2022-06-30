@@ -25,6 +25,7 @@ import (
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/otelutils"
+	"github.com/cyverse-de/go-mod/protobufjson"
 	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
 	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
@@ -100,6 +101,8 @@ func main() {
 	defer cancel()
 	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, serviceName, func(e error) { log.Fatal(e) })
 	defer shutdown()
+
+	nats.RegisterEncoder("protojson", &protobufjson.Codec{})
 
 	log.Infof("config path is %s", *configPath)
 	log.Infof("listen port is %d", listenPort)
