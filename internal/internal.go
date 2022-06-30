@@ -8,6 +8,7 @@ import (
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
+	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
@@ -23,6 +24,7 @@ type App struct {
 	dataUsageBase       string
 	dataUsageCurrent    string
 	amqpClient          *amqp.AMQP
+	natsClient          *nats.EncodedConn
 	amqpUsageRoutingKey string
 	qmsBaseURL          string
 	qmsEnabled          bool
@@ -34,6 +36,7 @@ type AppConfiguration struct {
 	DataUsageBaseURL         string
 	CurrentDataUsageEndpoint string
 	AMQPClient               *amqp.AMQP
+	NATSClient               *nats.EncodedConn
 	AMQPUsageRoutingKey      string
 	QMSEnabled               bool
 	QMSBaseURL               string
@@ -54,6 +57,7 @@ func New(db *sqlx.DB, config *AppConfiguration) *App {
 		dataUsageBase:       config.DataUsageBaseURL,
 		dataUsageCurrent:    config.CurrentDataUsageEndpoint,
 		amqpClient:          config.AMQPClient,
+		natsClient:          config.NATSClient,
 		amqpUsageRoutingKey: config.AMQPUsageRoutingKey,
 		qmsEnabled:          config.QMSEnabled,
 		qmsBaseURL:          config.QMSBaseURL,
