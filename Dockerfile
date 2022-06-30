@@ -1,17 +1,15 @@
-FROM golang:1.17 as build-root
+FROM golang:1.18 as build-root
 
-WORKDIR /build
-
-COPY go.mod .
-COPY go.sum .
-
+WORKDIR /go/src/github.copm/cyverse-de/resource-usage-api
 COPY . .
 
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 ENV GOARCH=amd64
 
-RUN go install -v ./...
+RUN go build --buildvcs=false .
+RUN go clean -cache -modcache
+RUN cp ./resource-usage-api /bin/resource-usage-api
 
 ENTRYPOINT ["resource-usage-api"]
 
