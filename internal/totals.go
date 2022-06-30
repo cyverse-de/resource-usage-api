@@ -256,8 +256,16 @@ func (a *App) AdminResendTotalToQMSHandler(c echo.Context) error {
 
 	log = log.WithFields(logrus.Fields{"username": username})
 
+	dedb := db.New(a.database)
+
+	userID, err := dedb.UserID(context, username)
+	if err != nil {
+		log.Error(err)
+		return echo.NewHTTPError(http.StatusBadRequest, err.Error())
+	}
+
 	log.Debug("resending total to QMS")
-	if err = a.SendTotal(context, username); err != nil {
+	if err = a.SendTotal(context, userID); err != nil {
 		log.Error(err)
 		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}

@@ -13,12 +13,21 @@ import (
 const CPUHoursAttr = "cpu.hours"
 const CPUHoursUnit = "cpu hours"
 
-func (a *App) SendTotal(context context.Context, username string) error {
+func (a *App) SendTotal(context context.Context, userID string) error {
 	var err error
 
 	dedb := db.New(a.database)
 
-	log = log.WithFields(logrus.Fields{"context": "send message callback", "user": username})
+	log = log.WithFields(logrus.Fields{"context": "send message callback", "user-id": userID})
+
+	// Get the user name from the created by UUID.
+	username, err := dedb.Username(context, userID)
+	if err != nil {
+		return err
+	}
+
+	log = log.WithFields(logrus.Fields{"username": username})
+	log.Debug("found username")
 
 	log.Debug("getting current CPU hours")
 	currentCPUHours, err := dedb.CurrentCPUHoursForUser(context, username)
