@@ -3,8 +3,7 @@ package internal
 import (
 	"context"
 
-	"github.com/cyverse-de/go-mod/gotelnats"
-	"github.com/cyverse-de/p/go/qms"
+	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/worker"
 	"github.com/sirupsen/logrus"
@@ -40,20 +39,9 @@ func (a *App) SendTotal(ctx context.Context, userID string) error {
 	if err != nil {
 		return err
 	}
-	//update := pbinit.NewAddUsage(username, "cpu.hours", "ADD", v)
-	//pbinit.InitAddUsage(update, "cyverse.qms.user.usages.add")
-	//defer span.End()
-
-	update := &qms.AddUsage{
-		Header:       gotelnats.NewHeader(),
-		Username:     username,
-		ResourceName: "cpu.hours",
-		UpdateType:   "ADD",
-		UsageValue:   v,
-	}
+	update := pbinit.NewAddUsage(username, "cpu.hours", "ADD", v)
 
 	log.Debug("sending update")
-	log.Debugf("update %+v", update)
 
 	if err = a.natsClient.Publish("cyverse.qms.user.usages.add", update); err != nil {
 		return err
