@@ -41,13 +41,12 @@ func (a *App) SendTotal(context context.Context, userID string) error {
 		return err
 	}
 	update := pbinit.NewAddUsage(username, "cpu.hours", "ADD", v)
-	pbinit.InitAddUsage(update, "cyverse.qms.user.usages.add")
+	//pbinit.InitAddUsage(update, "cyverse.qms.user.usages.add")
 	//defer span.End()
 
 	log.Debug("sending update")
-	log.Debugf("context %+v", context)
-	log.Debugf("client %+v", a.natsClient)
 	log.Debugf("update %+v", update)
+
 	if err = gotelnats.Publish(context, a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
 		return err
 	}
