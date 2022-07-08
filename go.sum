@@ -92,8 +92,6 @@ github.com/cyverse-de/go-mod/gotelnats v0.0.11 h1:jpnnGrCUnBq1oUow6vujXaW3oiqusV
 github.com/cyverse-de/go-mod/gotelnats v0.0.11/go.mod h1:UDIqvtSCeOKvjV+gZ+DrcPoTHPYkQjIuFxw7IlcbAI0=
 github.com/cyverse-de/go-mod/otelutils v0.0.2 h1:7O3jWQgf+PIIACSwtQM5SNtn6xTxxaLIUW6kjEKUpHM=
 github.com/cyverse-de/go-mod/otelutils v0.0.2/go.mod h1:8P2jRGnvUsH4qtyVP0W6KiV5iSr102pLkzKFgkYJ4og=
-github.com/cyverse-de/go-mod/pbinit v0.0.3 h1:dITpXZC7Tm+u8QkrSHmvMsOS/Mzb7n512FZbQfyTdWM=
-github.com/cyverse-de/go-mod/pbinit v0.0.3/go.mod h1:PkyTWEVPkvcsygNmSLt5kp2PADdVvwvVo/yn4MZXEtI=
 github.com/cyverse-de/go-mod/protobufjson v0.0.3 h1:XTIZejY7EUbpF6ZdhRhiFX9PGYDkGGmPP760cDswGWM=
 github.com/cyverse-de/go-mod/protobufjson v0.0.3/go.mod h1:p/ASemjpl2GEFYb3Tt7N8RozViwonsK0fOm0LxYeCt8=
 github.com/cyverse-de/messaging/v9 v9.1.4 h1:DRMqWWT6nAGAnCk2Ajcikm13CJimttgQ5ClrvEA5UNw=
@@ -281,6 +279,7 @@ github.com/kisielk/errcheck v1.1.0/go.mod h1:EZBBE59ingxPouuu3KfxchcWSUPOHkagtvW
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.15.6 h1:6D9PcO8QWu0JyaQ2zUMmu16T1T+zjjEpP91guRsvDfY=
+github.com/klauspost/compress v1.15.6/go.mod h1:PhcZ0MbTNciWF3rruxRgKxI5NkcHHrHUDtV4Yw2GlzU=
 github.com/knadh/koanf v1.4.2 h1:2itp+cdC6miId4pO4Jw7c/3eiYD26Z/Sz3ATJMwHxIs=
 github.com/knadh/koanf v1.4.2/go.mod h1:4NCo0q4pmU398vF9vq2jStF9MWQZ8JEDcDMHlDCr4h0=
 github.com/konsorten/go-windows-terminal-sequences v1.0.1/go.mod h1:T0+1ngSBFLxvqU3pZ+m/2kptfBszLMUkC4ZK/EgS/cQ=
@@ -315,6 +314,7 @@ github.com/mattn/go-sqlite3 v1.14.6/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A
 github.com/matttproud/golang_protobuf_extensions v1.0.1/go.mod h1:D8He9yQNgCq6Z5Ld7szi9bcBfOoFv/3dc6xSMkL2PC0=
 github.com/miekg/dns v1.0.14/go.mod h1:W1PPwlIAgtquWBMBEV9nkV9Cazfe8ScdGz/Lj7v3Nrg=
 github.com/minio/highwayhash v1.0.2 h1:Aak5U0nElisjDCfPSG79Tgzkn2gl66NxOMspRrKnA/g=
+github.com/minio/highwayhash v1.0.2/go.mod h1:BQskDq+xkJ12lmlUUi7U0M5Swg3EWR+dLTk+kldvVxY=
 github.com/mitchellh/cli v1.0.0/go.mod h1:hNIlj7HEI86fIcpObd7a0FcrxTWetlwJDGcceTlRvqc=
 github.com/mitchellh/copystructure v1.0.0/go.mod h1:SNtv71yrdKgLRyLFxmLdkAbkKEFWgYaq1OVrnRcwhnw=
 github.com/mitchellh/copystructure v1.2.0 h1:vpKXTN4ewci03Vljg/q9QvCGUDttBOGBIa15WveJJGw=
@@ -621,6 +621,7 @@ golang.org/x/sys v0.0.0-20181026203630-95b1ffbd15a5/go.mod h1:STP8DvDyc/dI5b8T5h
 golang.org/x/sys v0.0.0-20181107165924-66b7b1311ac8/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20181116152217-5ac8a444bdc5/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190129075346-302c3dd5f1cc/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
+golang.org/x/sys v0.0.0-20190130150945-aca44879d564/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190215142949-d0b11bdaac8a/go.mod h1:STP8DvDyc/dI5b8T5hshtkjS+E42TnysNCUPdjciGhY=
 golang.org/x/sys v0.0.0-20190312061237-fead79001313/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20190403152447-81d4e9dc473e/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
