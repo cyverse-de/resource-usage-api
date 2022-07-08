@@ -58,6 +58,10 @@ func (a *App) SendTotal(context context.Context, userID string) error {
 
 func (a *App) SendTotalCallback() worker.MessageSender {
 	return func(context context.Context, workItem *db.CPUUsageWorkItem) {
+		log = log.WithFields(logrus.Fields{"context": "callback for send total"})
+
+		log.Debugf("work item %+v", workItem)
+
 		if err := a.SendTotal(context, workItem.CreatedBy); err != nil {
 			log.WithContext(context).Error(err)
 		}
