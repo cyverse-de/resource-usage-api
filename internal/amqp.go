@@ -13,7 +13,7 @@ import (
 const CPUHoursAttr = "cpu.hours"
 const CPUHoursUnit = "cpu hours"
 
-func (a *App) SendTotal(context context.Context, userID string) error {
+func (a *App) SendTotal(ctx context.Context, userID string) error {
 	var err error
 
 	dedb := db.New(a.database)
@@ -21,7 +21,7 @@ func (a *App) SendTotal(context context.Context, userID string) error {
 	log = log.WithFields(logrus.Fields{"context": "send message callback", "user-id": userID})
 
 	// Get the user name from the created by UUID.
-	username, err := dedb.Username(context, userID)
+	username, err := dedb.Username(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -30,7 +30,7 @@ func (a *App) SendTotal(context context.Context, userID string) error {
 	log.Debug("found username")
 
 	log.Debug("getting current CPU hours")
-	currentCPUHours, err := dedb.CurrentCPUHoursForUser(context, username)
+	currentCPUHours, err := dedb.CurrentCPUHoursForUser(ctx, username)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func (a *App) SendTotal(context context.Context, userID string) error {
 	log.Debug("sending update")
 	log.Debugf("update %+v", update)
 
-	if err = gotelnats.Publish(context, a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
+	if err = gotelnats.Publish(context.Background(), a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
 		return err
 	}
 	log.Debug("done sending update")
