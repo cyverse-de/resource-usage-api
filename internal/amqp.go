@@ -3,6 +3,7 @@ package internal
 import (
 	"context"
 
+	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/worker"
@@ -43,13 +44,9 @@ func (a *App) SendTotal(ctx context.Context, userID string) error {
 
 	log.Debug("sending update")
 
-	if err = a.natsClient.Publish("cyverse.qms.user.usages.add", update); err != nil {
+	if err = gotelnats.Publish(context.Background(), a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
 		return err
 	}
-
-	// if err = gotelnats.Publish(context.Background(), a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
-	// 	return err
-	// }
 	log.Debug("done sending update")
 
 	return nil
