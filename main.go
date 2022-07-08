@@ -103,7 +103,7 @@ func main() {
 	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, serviceName, func(e error) { log.Fatal(e) })
 	defer shutdown()
 
-	nats.RegisterEncoder("protojson", &protobufjson.Codec{})
+	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
 
 	log.Infof("config path is %s", *configPath)
 	log.Infof("listen port is %d", listenPort)
