@@ -44,7 +44,7 @@ func (a *App) SendTotal(ctx context.Context, userID string) error {
 
 	log.Debug("sending update")
 
-	if err = gotelnats.Publish(context.Background(), a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
+	if err = gotelnats.Publish(ctx, a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
 		return err
 	}
 	log.Debug("done sending update")
