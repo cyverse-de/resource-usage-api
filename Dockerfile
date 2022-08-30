@@ -1,6 +1,6 @@
 FROM golang:1.18 as build-root
 
-WORKDIR /go/src/github.copm/cyverse-de/resource-usage-api
+WORKDIR /go/src/github.com/cyverse-de/resource-usage-api
 COPY . .
 
 ENV CGO_ENABLED=0
