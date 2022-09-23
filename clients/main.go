@@ -1,7 +1,10 @@
 package clients
 
 import (
+	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
@@ -43,4 +46,21 @@ func GetStatusCode(e error) int {
 	} else {
 		return http.StatusInternalServerError
 	}
+}
+
+// BuildURL builds a URL from a base URL and zero or URL path components.
+func BuildURL(baseURL *url.URL, components ...string) *url.URL {
+	newURL := *baseURL
+
+	// Escape all of the path components.
+	escapedComponents := make([]string, len(components))
+	for i, component := range components {
+		escapedComponents[i] = url.PathEscape(component)
+	}
+
+	// Add the components to the path.
+	newURL.Path = fmt.Sprintf("%s/%s", newURL.Path, strings.Join(escapedComponents, "/"))
+
+	// Return the new URL.
+	return &newURL
 }

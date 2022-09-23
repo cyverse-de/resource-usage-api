@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type DataUsageAPI struct {
@@ -42,19 +44,7 @@ type UserDataUsage struct {
 // dataUsageURL returns a URL that can be used to connect to the data-usage-api service. The URL path is determined by
 // the base URL and the arguments.
 func (c *DataUsageAPI) dataUsageURL(components ...string) *url.URL {
-	newURL := *c.baseURL
-
-	// Escape all of the path components.
-	escapedComponents := make([]string, len(components))
-	for i, component := range components {
-		escapedComponents[i] = url.PathEscape(component)
-	}
-
-	// Add the components to the path.
-	newURL.Path = fmt.Sprintf("%s/%s", newURL.Path, strings.Join(escapedComponents, "/"))
-
-	// Return the new URL.
-	return &newURL
+	return BuildURL(c.baseURL, components...)
 }
 
 // GetUsageSummary obtains the usage summary information for a user.
@@ -65,29 +55,29 @@ func (c *DataUsageAPI) GetUsageSummary(ctx context.Context, username string) (*U
 	requestURL := c.dataUsageURL(username, "data", "current")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
-		return &usage, err
+		return &usage, errors.Wrapf(err, "unable to build the request for %s", requestURL)
 	}
 
 	// Get the response.
 	resp, err := client.Do(req)
 	if err != nil {
-		return &usage, err
-	}
-	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return &usage, NewHTTPError(resp.StatusCode, "unexpected status code returned by service")
+		return &usage, errors.Wrapf(err, "unable to send the request to %s", requestURL)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return &usage, NewHTTPError(resp.StatusCode, fmt.Sprintf("%s returned %d", requestURL, resp.StatusCode))
+	}
 
 	// Read the response body.
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return &usage, err
+		return &usage, errors.Wrapf(err, "unable to read the response from %s", requestURL)
 	}
 
 	// Unmarshal the response body.
 	err = json.Unmarshal(body, &usage)
 	if err != nil {
-		return &usage, err
+		return &usage, errors.Wrapf(err, "unable to parse the response from %s", requestURL)
 	}
 
 	return &usage, nil
