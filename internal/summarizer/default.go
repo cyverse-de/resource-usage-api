@@ -19,6 +19,7 @@ type DefaultSummarizer struct {
 	OTelName        string
 	Database        *sqlx.DB
 	DataUsageClient *clients.DataUsageAPI
+	QMSClient       *clients.QMSAPI
 }
 
 // loadCPUUsage loads the user's CPU usage information from the DE database.
@@ -63,7 +64,7 @@ func (d *DefaultSummarizer) loadCPUUsage(summary *UserSummary) {
 }
 
 // loadDataUsage loads the user's data store usage information from data-usage-api.
-func (d DefaultSummarizer) loadDataUsage(summary *UserSummary) {
+func (d *DefaultSummarizer) loadDataUsage(summary *UserSummary) {
 
 	// Start an OpenTelemetry span.
 	ctx, span := otel.Tracer(d.OTelName).Start(d.Context, "summary: data usage")
@@ -89,6 +90,33 @@ func (d DefaultSummarizer) loadDataUsage(summary *UserSummary) {
 	span.End()
 }
 
+// loadUserPlan loads the user's plan information from QMS.
+func (d *DefaultSummarizer) loadUserPlan(summary *UserSummary) {
+
+	// Start an OpenTelemetry span.
+	ctx, span := otel.Tracer(d.OTelName).Start(d.Context, "summary: user plan")
+
+	// Obtain the user plan information.
+	userPlan, err := d.QMSClient.GetUserPlan(ctx, d.User)
+	if err != nil {
+		d.Log.WithContext(ctx).Error(err)
+		summary.Errors = append(
+			summary.Errors,
+			APIError{
+				Field:     "data_usage",
+				Message:   err.Error(),
+				ErrorCode: clients.GetStatusCode(err),
+			},
+		)
+	}
+
+	// Save the user plan information in the summary.
+	summary.UserPlan = userPlan
+
+	// Close the OpenTelemetry span.
+	span.End()
+}
+
 // LoadSummary aggregates and summarizes the user's resource usage information.
 func (d *DefaultSummarizer) LoadSummary() *UserSummary {
 	var summary UserSummary
@@ -98,6 +126,9 @@ func (d *DefaultSummarizer) LoadSummary() *UserSummary {
 
 	// Load the data usage information.
 	d.loadDataUsage(&summary)
+
+	// Load the user plan information.
+	d.loadUserPlan(&summary)
 
 	return &summary
 }
