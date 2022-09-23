@@ -89,7 +89,6 @@ func main() {
 		newUserTotalIntervalFlag = flag.String("new-user-total-interval", "365", "The number of days that user gets for new CPU hours tracking. Must parse as an integer.")
 		usageRoutingKey          = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
 		dataUsageBase            = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
-		dataUsageCurrentSuffix   = flag.String("data-usage-current-suffix", "/data/current", "The data-usage-api endpoints start with /:username, so this is the rest of the path after that.")
 	)
 
 	flag.Parse()
@@ -269,17 +268,19 @@ func main() {
 	}
 
 	appConfig := &internal.AppConfiguration{
-		UserSuffix:               userSuffix,
-		DataUsageBaseURL:         *dataUsageBase,
-		CurrentDataUsageEndpoint: *dataUsageCurrentSuffix,
-		AMQPClient:               amqpClient,
-		NATSClient:               natsClient,
-		AMQPUsageRoutingKey:      *usageRoutingKey,
-		QMSEnabled:               qmsEnabled,
-		QMSBaseURL:               qmsBaseURL,
+		UserSuffix:          userSuffix,
+		DataUsageBaseURL:    *dataUsageBase,
+		AMQPClient:          amqpClient,
+		NATSClient:          natsClient,
+		AMQPUsageRoutingKey: *usageRoutingKey,
+		QMSEnabled:          qmsEnabled,
+		QMSBaseURL:          qmsBaseURL,
 	}
 
-	app := internal.New(dbconn, appConfig)
+	app, err := internal.New(dbconn, appConfig)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	workerConfig := worker.Config{
 		Name:                    strings.ReplaceAll(uuid.New().String(), "-", ""),
