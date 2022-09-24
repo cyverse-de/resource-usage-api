@@ -89,7 +89,7 @@ func (c *QMSAPI) GetUserPlan(ctx context.Context, username string) (*UserPlan, e
 	var upr UserPlanResult
 
 	// Build the request.
-	requestURL := c.qmsURL("v1", "users", username, "plan")
+	requestURL := c.qmsURL("v1", "users", StripUsernameSuffix(username), "plan")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
 		return &upr.Result, errors.Wrapf(err, "unable to build the request for %s", requestURL)

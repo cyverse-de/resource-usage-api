@@ -4,10 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
+
+// A regular expression used to remove suffixes from usernames.
+var usernameSuffixRegexp = regexp.MustCompile("@.*$")
 
 // An HTTP client to be used by all of the client libraries.
 var client = http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
@@ -63,4 +67,9 @@ func BuildURL(baseURL *url.URL, components ...string) *url.URL {
 
 	// Return the new URL.
 	return &newURL
+}
+
+// StripUsernameSuffix removes the username suffix from a username.
+func StripUsernameSuffix(username string) string {
+	return usernameSuffixRegexp.ReplaceAllString(username, "")
 }

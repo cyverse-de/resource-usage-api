@@ -52,7 +52,7 @@ func (c *DataUsageAPI) GetUsageSummary(ctx context.Context, username string) (*U
 	var usage UserDataUsage
 
 	// Build the request.
-	requestURL := c.dataUsageURL(username, "data", "current")
+	requestURL := c.dataUsageURL(StripUsernameSuffix(username), "data", "current")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL.String(), nil)
 	if err != nil {
 		return &usage, errors.Wrapf(err, "unable to build the request for %s", requestURL)

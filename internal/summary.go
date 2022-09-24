@@ -25,7 +25,7 @@ func (a *App) GetUserSummary(c echo.Context) error {
 	summarizer := &summarizer.DefaultSummarizer{
 		Context:         c.Request().Context(),
 		Log:             log,
-		User:            user,
+		User:            a.FixUsername(user),
 		OTelName:        otelName,
 		Database:        a.database,
 		DataUsageClient: a.dataUsageClient,
