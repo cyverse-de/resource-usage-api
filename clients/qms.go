@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -64,7 +64,7 @@ func (c *QMSAPI) GetUserPlan(ctx context.Context, username string) (*UserPlan, e
 	}
 
 	// Read the response body.
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return &upr.Result, errors.Wrapf(err, "unable to read the response from %s", requestURL)
 	}

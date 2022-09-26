@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -69,7 +69,7 @@ func (c *DataUsageAPI) GetUsageSummary(ctx context.Context, username string) (*U
 	}
 
 	// Read the response body.
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return &usage, errors.Wrapf(err, "unable to read the response from %s", requestURL)
 	}
