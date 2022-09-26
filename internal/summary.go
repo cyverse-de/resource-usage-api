@@ -22,17 +22,28 @@ func (a *App) GetUserSummary(c echo.Context) error {
 	log := log.WithFields(logrus.Fields{"context": "get user summary", "user": user}).WithContext(context)
 
 	// Create the summarizer instance.
-	summarizer := &summarizer.DefaultSummarizer{
-		Context:         c.Request().Context(),
-		Log:             log,
-		User:            a.FixUsername(user),
-		OTelName:        otelName,
-		Database:        a.database,
-		DataUsageClient: a.dataUsageClient,
-		QMSClient:       a.qmsClient,
+	var summarizerInstance summarizer.Summarizer
+	if a.qmsEnabled {
+		summarizerInstance = &summarizer.QMSSummarizer{
+			Context:   c.Request().Context(),
+			Log:       log,
+			User:      a.FixUsername(user),
+			OTelName:  otelName,
+			Database:  a.database,
+			QMSClient: a.qmsClient,
+		}
+	} else {
+		summarizerInstance = &summarizer.DefaultSummarizer{
+			Context:         c.Request().Context(),
+			Log:             log,
+			User:            a.FixUsername(user),
+			OTelName:        otelName,
+			Database:        a.database,
+			DataUsageClient: a.dataUsageClient,
+		}
 	}
 
 	// Obtain the summary and send it to the caller.
-	summary := summarizer.LoadSummary()
+	summary := summarizerInstance.LoadSummary()
 	return c.JSON(http.StatusOK, &summary)
 }

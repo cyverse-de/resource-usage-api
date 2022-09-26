@@ -32,48 +32,6 @@ func QMSAPIClient(baseURL string) (*QMSAPI, error) {
 	return &QMSAPI{baseURL: url}, nil
 }
 
-// User is the QMS representation of a user.
-type User struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-}
-
-// Plan is the representation of a plan.
-type Plan struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
-type ResourceType struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Unit string `json:"description"`
-}
-
-type Quota struct {
-	ID           string       `json:"id"`
-	Quota        float64      `json:"quota"`
-	ResourceType ResourceType `json:"resource_type"`
-}
-
-type Usage struct {
-	ID           string       `json:"id"`
-	Usage        float64      `json:"usage"`
-	ResourceType ResourceType `json:"resource_type"`
-}
-
-// UserPlan is the representation of a user plan.
-type UserPlan struct {
-	ID                 string  `json:"id"`
-	EffectiveStartDate string  `json:"effective_start_date"`
-	EffectiveEndDate   string  `json:"effective_end_date"`
-	User               User    `json:"users"`
-	Plan               Plan    `json:"plan"`
-	Quotas             []Quota `json:"quotas"`
-	Usages             []Usage `json:"-"`
-}
-
 type UserPlanResult struct {
 	Result UserPlan `json:"result"`
 }

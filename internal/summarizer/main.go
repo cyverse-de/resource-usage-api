@@ -11,6 +11,15 @@ type APIError struct {
 	ErrorCode int    `json:"error_code"`
 }
 
+// NewAPIError is a simple convenience function for generating a new API error struct.
+func NewAPIError(field string, message string, errorCode int) *APIError {
+	return &APIError{
+		Field:     field,
+		Message:   message,
+		ErrorCode: errorCode,
+	}
+}
+
 // UserSummary contains the data summarizing the user's current resource
 // usages and their current plan.
 type UserSummary struct {

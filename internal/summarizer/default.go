@@ -19,7 +19,6 @@ type DefaultSummarizer struct {
 	OTelName        string
 	Database        *sqlx.DB
 	DataUsageClient *clients.DataUsageAPI
-	QMSClient       *clients.QMSAPI
 }
 
 // loadCPUUsage loads the user's CPU usage information from the DE database.
@@ -28,10 +27,8 @@ func (d *DefaultSummarizer) loadCPUUsage(summary *UserSummary) {
 	// Start an OpenTelemetry span.
 	ctx, span := otel.Tracer(d.OTelName).Start(d.Context, "summary: CPU hours")
 
-	// Establish the database connection.
-	database := db.New(d.Database)
-
 	// Load the CPU usage information from the database.
+	database := db.New(d.Database)
 	cpuHours, err := database.CurrentCPUHoursForUser(ctx, d.User)
 	if err == sql.ErrNoRows {
 		cpuHours = &db.CPUHours{}
@@ -90,33 +87,6 @@ func (d *DefaultSummarizer) loadDataUsage(summary *UserSummary) {
 	span.End()
 }
 
-// loadUserPlan loads the user's plan information from QMS.
-func (d *DefaultSummarizer) loadUserPlan(summary *UserSummary) {
-
-	// Start an OpenTelemetry span.
-	ctx, span := otel.Tracer(d.OTelName).Start(d.Context, "summary: user plan")
-
-	// Obtain the user plan information.
-	userPlan, err := d.QMSClient.GetUserPlan(ctx, d.User)
-	if err != nil {
-		d.Log.WithContext(ctx).Error(err)
-		summary.Errors = append(
-			summary.Errors,
-			APIError{
-				Field:     "data_usage",
-				Message:   err.Error(),
-				ErrorCode: clients.GetStatusCode(err),
-			},
-		)
-	}
-
-	// Save the user plan information in the summary.
-	summary.UserPlan = userPlan
-
-	// Close the OpenTelemetry span.
-	span.End()
-}
-
 // LoadSummary aggregates and summarizes the user's resource usage information.
 func (d *DefaultSummarizer) LoadSummary() *UserSummary {
 	var summary UserSummary
@@ -127,8 +97,8 @@ func (d *DefaultSummarizer) LoadSummary() *UserSummary {
 	// Load the data usage information.
 	d.loadDataUsage(&summary)
 
-	// Load the user plan information.
-	d.loadUserPlan(&summary)
+	// This resource usage summarizer leaves the subscription information blank.
+	summary.UserPlan = nil
 
 	return &summary
 }
