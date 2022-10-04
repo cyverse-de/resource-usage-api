@@ -5,10 +5,12 @@ import (
 	"strings"
 
 	"github.com/cyverse-de/resource-usage-api/amqp"
+	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
 	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 
 	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
@@ -21,12 +23,11 @@ type App struct {
 	database            *sqlx.DB
 	router              *echo.Echo
 	userSuffix          string
-	dataUsageBase       string
-	dataUsageCurrent    string
+	dataUsageClient     *clients.DataUsageAPI
 	amqpClient          *amqp.AMQP
 	natsClient          *nats.EncodedConn
 	amqpUsageRoutingKey string
-	qmsBaseURL          string
+	qmsClient           *clients.QMSAPI
 	qmsEnabled          bool
 }
 
@@ -49,21 +50,33 @@ func (a *App) FixUsername(username string) string {
 	return username
 }
 
-func New(db *sqlx.DB, config *AppConfiguration) *App {
+// New creates a new app instance for provided configuration.
+func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
+
+	// Create the client libraries for the downstream services.
+	dataUsageClient, err := clients.DataUsageAPIClient(config.DataUsageBaseURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create the data-usage-api client")
+	}
+	qmsClient, err := clients.QMSAPIClient(config.QMSBaseURL)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to create the QMS client")
+	}
+
+	// Create the app instance.
 	app := &App{
 		database:            db,
 		router:              echo.New(),
 		userSuffix:          config.UserSuffix,
-		dataUsageBase:       config.DataUsageBaseURL,
-		dataUsageCurrent:    config.CurrentDataUsageEndpoint,
+		dataUsageClient:     dataUsageClient,
 		amqpClient:          config.AMQPClient,
 		natsClient:          config.NATSClient,
 		amqpUsageRoutingKey: config.AMQPUsageRoutingKey,
+		qmsClient:           qmsClient,
 		qmsEnabled:          config.QMSEnabled,
-		qmsBaseURL:          config.QMSBaseURL,
 	}
 
-	return app
+	return app, nil
 }
 
 func (a *App) Router() *echo.Echo {
