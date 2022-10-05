@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/pbinit"
@@ -42,6 +43,13 @@ func (a *App) SendTotal(ctx context.Context, userID string) error {
 	}
 	update := pbinit.NewAddUsage(username, "cpu.hours", "ADD", v)
 
+	jsonUpdate, err := json.Marshal(update)
+	if err != nil {
+		log.Errorf("unable to JSON encode the usage update for %s: %s", username, err.Error())
+		log.Debug("sending update")
+	} else {
+		log.Debugf("sending update: %s", jsonUpdate)
+	}
 	log.Debug("sending update")
 
 	if err = gotelnats.Publish(ctx, a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
