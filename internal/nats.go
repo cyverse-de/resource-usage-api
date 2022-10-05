@@ -41,7 +41,7 @@ func (a *App) SendTotal(ctx context.Context, userID string) error {
 	if err != nil {
 		return err
 	}
-	update := pbinit.NewAddUsage(username, "cpu.hours", "ADD", v)
+	update := pbinit.NewAddUsage(username, "cpu.hours", "SET", v)
 
 	jsonUpdate, err := json.Marshal(update)
 	if err != nil {
@@ -52,7 +52,7 @@ func (a *App) SendTotal(ctx context.Context, userID string) error {
 	}
 	log.Debug("sending update")
 
-	if err = gotelnats.Publish(ctx, a.natsClient, "cyverse.qms.user.usages.add", update); err != nil {
+	if err = gotelnats.Publish(ctx, a.natsClient, "cyverse.qms.user.usages.set", update); err != nil {
 		return err
 	}
 	log.Debug("done sending update")

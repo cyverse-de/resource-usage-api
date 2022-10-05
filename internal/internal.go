@@ -111,7 +111,6 @@ func (a *App) Router() *echo.Echo {
 	cpuadmin.GET("/totals/all", a.AdminAllCPUHoursTotalsHandler)
 	cpuadmin.POST("/recalculate/for/:username", a.AdminRecalculateCPUHoursTotalHandler)
 	cpuadmin.GET("/recalculate/can", a.AdminUsersWithCalculableAnalysesHandler)
-	cpuadmin.POST("/resend/total/for/:username", a.AdminResendTotalToQMSHandler)
 
 	events := cpuadmin.Group("/events")
 	events.GET("", a.AdminListEvents)
