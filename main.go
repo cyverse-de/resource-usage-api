@@ -294,7 +294,7 @@ func main() {
 		ClaimLifetime:           claimLifetime,
 		WorkSeekingLifetime:     seekingLifetime,
 		NewUserTotalInterval:    newUserTotalInterval,
-		MessageSender:           app.SendTotalCallback(),
+		MessageSender:           app.SendUpdateCallback(),
 	}
 
 	log.Infof("worker name is %s", workerConfig.Name)
