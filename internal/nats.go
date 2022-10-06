@@ -38,11 +38,6 @@ func (a *App) SendUpdate(ctx context.Context, usageEvent *db.CPUUsageWorkItem) e
 	log = log.WithField("username", username)
 	log.Debugf("username for user ID %s is %s", userID, username)
 
-	// QMS currently only supports incremental updates.
-	if usageEvent.EventType != db.CPUHoursAdd && usageEvent.EventType != db.CPUHoursSubtract {
-		return nil
-	}
-
 	// Build the update message body.
 	v, err := usageEvent.Value.Float64()
 	if err != nil {
