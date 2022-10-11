@@ -6,20 +6,29 @@ import (
 	"time"
 
 	"github.com/cockroachdb/apd"
+	"github.com/cyverse-de/go-mod/gotelnats"
+	"github.com/cyverse-de/go-mod/pbinit"
+	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
+	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "cpuhours"})
 
 type CPUHours struct {
-	db *db.Database
+	db               *db.Database
+	natsConn         *nats.EncodedConn
+	addUpdateSubject string
 }
 
-func New(db *db.Database) *CPUHours {
+func New(db *db.Database, conn *nats.EncodedConn, addUpdateSubject string) *CPUHours {
 	return &CPUHours{
-		db: db,
+		db:               db,
+		natsConn:         conn,
+		addUpdateSubject: addUpdateSubject,
 	}
 }
 
@@ -97,21 +106,34 @@ func (c *CPUHours) addEvent(context context.Context, analysis *db.Analysis, cpuH
 
 	nowTime := time.Now()
 
-	event := db.CPUUsageEvent{
-		CreatedBy:     analysis.UserID,
-		EffectiveDate: nowTime,
-		RecordDate:    nowTime,
-		EventType:     db.CPUHoursAdd,
-		Value:         *cpuHours,
+	value, err := cpuHours.Float64()
+	if err != nil {
+		return err
 	}
+
+	update := &qms.Update{
+		ValueType:     "usages",
+		Value:         value,
+		EffectiveDate: timestamppb.New(nowTime),
+		Operation: &qms.UpdateOperation{
+			Name: "ADD",
+		},
+		ResourceType: &qms.ResourceType{
+			Name: "cpu.hours",
+			Unit: "cpu hours",
+		},
+		User: &qms.QMSUser{
+			Uuid: analysis.UserID,
+		},
+	}
+
+	req := pbinit.NewAddUpdateRequest(update)
 
 	log = log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
 
-	log.Debug("adding cpu usage event")
-	if err = c.db.AddCPUUsageEvent(context, &event); err != nil {
+	if err = gotelnats.Publish(context, c.natsConn, c.addUpdateSubject, req); err != nil {
 		return err
 	}
-	log.Debug("done adding cpu usage event")
 
 	return nil
 }

@@ -148,7 +148,7 @@ func (a *App) AdminRecalculateCPUHoursTotalHandler(c echo.Context) error {
 	log.Debugf("username set to %s", user)
 
 	d := db.New(a.database)
-	ch := cpuhours.New(d)
+	ch := cpuhours.New(d, a.natsClient, a.addUpdateSubject)
 
 	// Get the user's ID from the database. If the user doesn't exist there's nothing
 	// we can do.

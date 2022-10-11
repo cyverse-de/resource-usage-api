@@ -29,6 +29,7 @@ type App struct {
 	amqpUsageRoutingKey string
 	qmsClient           *clients.QMSAPI
 	qmsEnabled          bool
+	addUpdateSubject    string
 }
 
 // AppConfiguration contains the settings needed to configure the App.
@@ -41,6 +42,7 @@ type AppConfiguration struct {
 	AMQPUsageRoutingKey      string
 	QMSEnabled               bool
 	QMSBaseURL               string
+	AddUpdateSubject         string
 }
 
 func (a *App) FixUsername(username string) string {
@@ -74,6 +76,7 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 		amqpUsageRoutingKey: config.AMQPUsageRoutingKey,
 		qmsClient:           qmsClient,
 		qmsEnabled:          config.QMSEnabled,
+		addUpdateSubject:    config.AddUpdateSubject,
 	}
 
 	return app, nil

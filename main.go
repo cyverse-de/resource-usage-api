@@ -39,18 +39,18 @@ const serviceName = "resource-usage-api"
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
-func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
+func getHandler(dbClient *sqlx.DB, natsClient *nats.EncodedConn, addUpdateSubject string) amqp.HandlerFn {
 	dedb := db.New(dbClient)
-	cpuhours := cpuhours.New(dedb)
+	cpuhours := cpuhours.New(dedb, natsClient, addUpdateSubject)
 
-	return func(context context.Context, externalID string, state messaging.JobState) {
+	return func(ctx context.Context, externalID string, state messaging.JobState) {
 		var err error
 
-		log = log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(context)
+		log = log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(ctx)
 
 		if state == messaging.FailedState || state == messaging.SucceededState {
 			log.Debug("calculating CPU hours for analysis")
-			if err = cpuhours.CalculateForAnalysis(context, externalID); err != nil {
+			if err = cpuhours.CalculateForAnalysis(ctx, externalID); err != nil {
 				log.Error(err)
 			}
 			log.Debug("done calculating CPU hours for analysis")
@@ -89,6 +89,7 @@ func main() {
 		newUserTotalIntervalFlag = flag.String("new-user-total-interval", "365", "The number of days that user gets for new CPU hours tracking. Must parse as an integer.")
 		usageRoutingKey          = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
 		dataUsageBase            = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
+		addUpdateSubject         = flag.String("add-update-subject", "qms.user.updates.add", "The NATS subject to send update messages to")
 	)
 
 	flag.Parse()
@@ -213,30 +214,6 @@ func main() {
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
 
-	amqpConfig := amqp.Configuration{
-		URI:           amqpURI,
-		Exchange:      amqpExchange,
-		ExchangeType:  amqpExchangeType,
-		Reconnect:     *reconnect,
-		Queue:         *queue,
-		PrefetchCount: 0,
-	}
-
-	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
-	log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
-	log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
-	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
-	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
-
-	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer amqpClient.Close()
-	log.Debug("after close")
-
-	log.Info("done connecting to the AMQP broker")
-
 	nc, err := nats.Connect(
 		natsCluster,
 		nats.UserCredentials(*credsPath),
@@ -269,6 +246,30 @@ func main() {
 		log.Fatal(err)
 	}
 
+	amqpConfig := amqp.Configuration{
+		URI:           amqpURI,
+		Exchange:      amqpExchange,
+		ExchangeType:  amqpExchangeType,
+		Reconnect:     *reconnect,
+		Queue:         *queue,
+		PrefetchCount: 0,
+	}
+
+	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
+	log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
+	log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
+	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
+	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
+
+	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, natsClient, *addUpdateSubject))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer amqpClient.Close()
+	log.Debug("after close")
+
+	log.Info("done connecting to the AMQP broker")
+
 	appConfig := &internal.AppConfiguration{
 		UserSuffix:          userSuffix,
 		DataUsageBaseURL:    *dataUsageBase,
@@ -277,6 +278,7 @@ func main() {
 		AMQPUsageRoutingKey: *usageRoutingKey,
 		QMSEnabled:          qmsEnabled,
 		QMSBaseURL:          qmsBaseURL,
+		AddUpdateSubject:    *addUpdateSubject,
 	}
 
 	app, err := internal.New(dbconn, appConfig)

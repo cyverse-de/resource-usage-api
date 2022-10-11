@@ -34,7 +34,7 @@ type analysisUpdateMsg struct {
 	Sender  string             `json:"Sender"`
 }
 
-type HandlerFn func(context context.Context, externalID string, state messaging.JobState)
+type HandlerFn func(ctx context.Context, externalID string, state messaging.JobState)
 
 type AMQP struct {
 	client  *messaging.Client
