@@ -7,7 +7,7 @@ require (
 	github.com/cyverse-de/go-mod/cfg v0.0.1
 	github.com/cyverse-de/go-mod/gotelnats v0.0.11
 	github.com/cyverse-de/go-mod/otelutils v0.0.2
-	github.com/cyverse-de/go-mod/pbinit v0.0.3
+	github.com/cyverse-de/go-mod/pbinit v0.0.7
 	github.com/cyverse-de/go-mod/protobufjson v0.0.3
 	github.com/cyverse-de/messaging/v9 v9.1.4
 	github.com/go-co-op/gocron v1.9.0
@@ -34,7 +34,8 @@ require (
 	github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9 // indirect
 	github.com/cyverse-de/model/v6 v6.0.1 // indirect
 	github.com/cyverse-de/p/go/header v0.0.1 // indirect
-	github.com/cyverse-de/p/go/qms v0.0.7 // indirect
+	github.com/cyverse-de/p/go/monitoring v0.0.2 // indirect
+	github.com/cyverse-de/p/go/qms v0.0.8 // indirect
 	github.com/cyverse-de/p/go/svcerror v0.0.5 // indirect
 	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
@@ -78,7 +79,7 @@ require (
 	golang.org/x/sys v0.0.0-20220412071739-889880a91fd5 // indirect
 	golang.org/x/text v0.3.7 // indirect
 	golang.org/x/time v0.0.0-20220411224347-583f2d630306 // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20200227125254-8fa46927fb4f // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
