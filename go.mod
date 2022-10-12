@@ -17,13 +17,11 @@ require (
 	github.com/labstack/echo/v4 v4.7.0
 	github.com/lib/pq v1.10.3
 	github.com/nats-io/nats.go v1.16.0
-	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.8.1
 	github.com/streadway/amqp v1.0.1-0.20200716223359-e6b33f460591
 	github.com/uptrace/opentelemetry-go-extra/otellogrus v0.1.12
 	github.com/uptrace/opentelemetry-go-extra/otelsql v0.1.10
 	github.com/uptrace/opentelemetry-go-extra/otelsqlx v0.1.10
-	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.30.0
 	go.opentelemetry.io/otel v1.7.0
 	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	google.golang.org/protobuf v1.28.1
@@ -35,7 +33,6 @@ require (
 	github.com/cyverse-de/p/go/header v0.0.1 // indirect
 	github.com/cyverse-de/p/go/monitoring v0.0.2 // indirect
 	github.com/cyverse-de/p/go/svcerror v0.0.5 // indirect
-	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/fsnotify/fsnotify v1.5.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -55,6 +52,7 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e // indirect
 	github.com/pelletier/go-toml v1.9.4 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
