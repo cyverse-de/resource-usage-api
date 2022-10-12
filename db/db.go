@@ -3,30 +3,13 @@ package db
 import (
 	"context"
 	"database/sql"
-	"time"
 
-	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/resource-usage-api/logging"
+	"github.com/guregu/null"
 	"github.com/jmoiron/sqlx"
 )
 
 var log = logging.Log // nolint
-
-type CPUHours struct {
-	ID             string      `db:"id" json:"id"`
-	UserID         string      `db:"user_id" json:"user_id"`
-	Username       string      `db:"username" json:"username"`
-	Total          apd.Decimal `db:"total" json:"total"`
-	EffectiveStart time.Time   `db:"effective_start" json:"effective_start"`
-	EffectiveEnd   time.Time   `db:"effective_end" json:"effective_end"`
-	LastModified   time.Time   `db:"last_modified" json:"last_modified"`
-}
-
-// User has information about a user from the DE's database.
-type User struct {
-	ID       string `db:"id" json:"id"`
-	Username string `db:"username" json:"username"`
-}
 
 type DatabaseAccessor interface {
 	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
@@ -42,38 +25,18 @@ func New(db DatabaseAccessor) *Database {
 	return &Database{db: db}
 }
 
-func (d *Database) Username(context context.Context, userID string) (string, error) {
-	var username string
-
-	const q = `
-		SELECT username
-		FROM users
-		WHERE id = $1;
-	`
-
-	err := d.db.QueryRowxContext(context, q, userID).Scan(&username)
-	if err != nil {
-		return "", err
-	}
-
-	return username, nil
-}
-
-func (d *Database) UserID(context context.Context, username string) (string, error) {
-	var userID string
-
-	const q = `
-		SELECT id
-		FROM users
-		WHERE username = $1;
-	`
-
-	err := d.db.QueryRowxContext(context, q, username).Scan(&userID)
-	if err != nil {
-		return "", err
-	}
-
-	return userID, nil
+type Analysis struct {
+	ID         string      `db:"id"`
+	AppID      string      `db:"app_id"`
+	StartDate  null.Time   `db:"start_date"`
+	EndDate    null.Time   `db:"end_date"`
+	Status     string      `db:"status"`
+	Deleted    bool        `db:"deleted"`
+	Submission string      `db:"submission"`
+	UserID     string      `db:"user_id"`
+	JobType    string      `db:"job_type"`
+	SystemID   string      `db:"system_id"`
+	Subdomain  null.String `db:"subdomain"`
 }
 
 func (d *Database) MillicoresReserved(context context.Context, analysisID string) (int64, error) {
@@ -87,37 +50,42 @@ func (d *Database) MillicoresReserved(context context.Context, analysisID string
 	return millicores, err
 }
 
-func (d *Database) UsersWithCalculableAnalyses(context context.Context) ([]User, error) {
-	var users []User
+// GetAnalysisIDByExternalID returns the analysis ID based on the external ID
+// passed in.
+func (d *Database) GetAnalysisIDByExternalID(context context.Context, externalID string) (string, error) {
+	var analysisID string
+	const q = `
+		SELECT j.id
+		FROM jobs j
+		JOIN job_steps s ON s.job_id = j.id
+		WHERE s.external_id = $1
+	`
+	err := d.db.QueryRowxContext(context, q, externalID).Scan(&analysisID)
+	if err != nil {
+		return "", err
+	}
+	return analysisID, nil
+}
 
+func (d *Database) AnalysisWithoutUser(context context.Context, analysisID string) (*Analysis, error) {
 	const q = `
 		SELECT
-			DISTINCT ON (u.id) u.id,
-			u.username
-		FROM users u
-		JOIN jobs j ON j.user_id = u.id
-		WHERE j.millicores_reserved != 0
-		AND j.start_date IS NOT NULL
-		AND j.end_date IS NOT NULL;
+			j.id,
+			j.app_id,
+			j.start_date,
+			j.end_date,
+			j.status,
+			j.deleted,
+			j.submission,
+			j.user_id,
+			j.subdomain,
+			t.name job_type,
+			t.system_id
+		FROM jobs j
+		JOIN job_types t ON j.job_type_id = t.id
+		WHERE j.id = $1;
 	`
-
-	rows, err := d.db.QueryxContext(context, q)
-	if err != nil {
-		return nil, err
-	}
-
-	for rows.Next() {
-		var u User
-		err = rows.StructScan(&u)
-		if err != nil {
-			return nil, err
-		}
-		users = append(users, u)
-	}
-
-	if err = rows.Err(); err != nil {
-		return users, err
-	}
-
-	return users, nil
+	var analysis Analysis
+	err := d.db.QueryRowxContext(context, q, analysisID).StructScan(&analysis)
+	return &analysis, err
 }
