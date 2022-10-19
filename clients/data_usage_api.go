@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -33,12 +34,12 @@ func DataUsageAPIClient(baseURL string) (*DataUsageAPI, error) {
 
 // UserDataUsage contains a user's current data usage, as returned by data-usage-api service.
 type UserDataUsage struct {
-	ID           string `json:"id"`
-	UserID       string `json:"user_id"`
-	Username     string `json:"username"`
-	Total        int64  `json:"total"`
-	Time         string `json:"time"`
-	LastModified string `json:"last_modified"`
+	ID           string     `json:"id"`
+	UserID       string     `json:"user_id"`
+	Username     string     `json:"username"`
+	Total        int64      `json:"total"`
+	Time         *time.Time `json:"time"`
+	LastModified *time.Time `json:"last_modified"`
 }
 
 // dataUsageURL returns a URL that can be used to connect to the data-usage-api service. The URL path is determined by
