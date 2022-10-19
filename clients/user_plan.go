@@ -22,15 +22,17 @@ type ResourceType struct {
 }
 
 type Quota struct {
-	ID           string       `json:"id"`
-	Quota        float64      `json:"quota"`
-	ResourceType ResourceType `json:"resource_type"`
+	ID             string       `json:"id"`
+	Quota          float64      `json:"quota"`
+	ResourceType   ResourceType `json:"resource_type"`
+	LastModifiedAt *time.Time   `json:"last_modified_at"`
 }
 
 type Usage struct {
-	ID           string       `json:"id"`
-	Usage        float64      `json:"usage"`
-	ResourceType ResourceType `json:"resource_type"`
+	ID             string       `json:"id"`
+	Usage          float64      `json:"usage"`
+	ResourceType   ResourceType `json:"resource_type"`
+	LastModifiedAt *time.Time   `json:"last_modified_at"`
 }
 
 // UserPlan is the representation of a user plan.

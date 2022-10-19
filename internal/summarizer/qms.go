@@ -87,6 +87,9 @@ func (s *QMSSummarizer) loadUserPlan(summary *UserSummary) {
 		summary.CPUUsage.ID = cpuUsage.ID
 		summary.CPUUsage.EffectiveEnd = userPlan.EffectiveEndDate
 		summary.CPUUsage.EffectiveStart = userPlan.EffectiveStartDate
+		if cpuUsage.LastModifiedAt != nil {
+			summary.CPUUsage.LastModified = *cpuUsage.LastModifiedAt
+		}
 		_, err = summary.CPUUsage.Total.SetFloat64(cpuUsage.Usage)
 		if err != nil {
 			err = errors.Wrap(err, "unable to set the CPU usage total")
@@ -108,6 +111,10 @@ func (s *QMSSummarizer) loadUserPlan(summary *UserSummary) {
 	if dataUsage != nil {
 		summary.DataUsage.ID = dataUsage.ID
 		summary.DataUsage.Total = int64(dataUsage.Usage)
+		if dataUsage.LastModifiedAt != nil {
+			summary.DataUsage.LastModified = dataUsage.LastModifiedAt
+			summary.DataUsage.Time = dataUsage.LastModifiedAt
+		}
 	} else {
 		msg := fmt.Sprintf("no data usage found for %s", s.User)
 		summary.Errors = append(
