@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/cyverse-de/messaging/v9"
+	"github.com/cyverse-de/p/go/analysis"
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/cpuhours"
 	"github.com/cyverse-de/resource-usage-api/db"
@@ -23,7 +24,9 @@ import (
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/otelutils"
+	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/go-mod/protobufjson"
+	"github.com/cyverse-de/go-mod/subjects"
 	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
 	"github.com/uptrace/opentelemetry-go-extra/otelsql"
 	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
@@ -44,6 +47,34 @@ func getHandler(dbClient *sqlx.DB, natsClient *nats.EncodedConn, addUpdateSubjec
 
 	return func(ctx context.Context, externalID string, state messaging.JobState) {
 		var err error
+
+		log = log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(ctx)
+
+		if state == messaging.FailedState || state == messaging.SucceededState {
+			log.Debug("calculating CPU hours for analysis")
+			if err = cpuhours.CalculateForAnalysis(ctx, externalID); err != nil {
+				log.Error(err)
+			}
+			log.Debug("done calculating CPU hours for analysis")
+		} else {
+			log.Debugf("received status is %s, ignoring", state)
+		}
+	}
+}
+
+func getNATSHandler(dbClient *sqlx.DB, natsClient *nats.EncodedConn, addUpdateSubject string) nats.Handler {
+	dedb := db.New(dbClient)
+	cpuhours := cpuhours.New(dedb, natsClient, addUpdateSubject)
+
+	return func(subject, reply string, request *analysis.AnalysisStatus) {
+		var err error
+
+		log := log.WithFields(logrus.Fields{"context": "anaylsis update recvd via nats"})
+		ctx, span := pbinit.InitAnalysisStatus(request, subject)
+		defer span.End()
+
+		externalID := request.Job.InvocationId
+		state := messaging.JobState(request.State)
 
 		log = log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(ctx)
 
@@ -192,6 +223,15 @@ func main() {
 
 	natsClient, err := nats.NewEncodedConn(nc, "protojson")
 	if err != nil {
+		log.Fatal(err)
+	}
+
+	if err = QueueSubscribe(
+		subjects.AnalysisStatus,
+		QueueName(subjects.AnalysisStatus, serviceName),
+		natsClient,
+		getNATSHandler(dbconn, natsClient, *addUpdateSubject),
+	); err != nil {
 		log.Fatal(err)
 	}
 
