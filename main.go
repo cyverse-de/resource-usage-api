@@ -110,6 +110,7 @@ func main() {
 		reconnect        = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel         = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
 		addUpdateSubject = flag.String("add-update-subject", "qms.user.updates.add", "The NATS subject to send update messages to")
+		disableAMQP      = flag.Bool("disable-amqp", false, "Turns off support for AMQP messaging")
 	)
 
 	flag.Parse()
@@ -126,7 +127,7 @@ func main() {
 	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
 
 	log.Infof("config path is %s", *configPath)
-	log.Infof("listen port is %d", listenPort)
+	log.Infof("listen port is %d", *listenPort)
 	log.Infof("NATS TLS cert file is %s", *tlsCert)
 	log.Infof("NATS TLS key file is %s", *tlsKey)
 	log.Infof("NATS CA cert file is %s", *caCert)
@@ -226,35 +227,41 @@ func main() {
 		log.Fatal(err)
 	}
 
+	statusQueue := QueueName(subjects.AnalysisStatus, serviceName)
+
 	if err = QueueSubscribe(
 		subjects.AnalysisStatus,
-		QueueName(subjects.AnalysisStatus, serviceName),
+		statusQueue,
 		natsClient,
 		getNATSHandler(dbconn, natsClient, *addUpdateSubject),
 	); err != nil {
 		log.Fatal(err)
 	}
 
-	amqpConfig := amqp.Configuration{
-		URI:           amqpURI,
-		Exchange:      amqpExchange,
-		ExchangeType:  amqpExchangeType,
-		Reconnect:     *reconnect,
-		Queue:         *queue,
-		PrefetchCount: 0,
-	}
+	log.Infof("subscribed to subject %s on queue %s", subjects.AnalysisStatus, statusQueue)
 
-	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
-	log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
-	log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
-	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
-	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
+	if !*disableAMQP {
+		amqpConfig := amqp.Configuration{
+			URI:           amqpURI,
+			Exchange:      amqpExchange,
+			ExchangeType:  amqpExchangeType,
+			Reconnect:     *reconnect,
+			Queue:         *queue,
+			PrefetchCount: 0,
+		}
 
-	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, natsClient, *addUpdateSubject))
-	if err != nil {
-		log.Fatal(err)
+		log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
+		log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
+		log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
+		log.Infof("AMQP queue name: %s", amqpConfig.Queue)
+		log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
+
+		amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, natsClient, *addUpdateSubject))
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer amqpClient.Close()
 	}
-	defer amqpClient.Close()
 
 	log.Info("done connecting to the AMQP broker")
 	log.Infof("listening on port %d", *listenPort)
