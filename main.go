@@ -15,8 +15,6 @@ import (
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/internal"
 	"github.com/cyverse-de/resource-usage-api/logging"
-	"github.com/cyverse-de/resource-usage-api/worker"
-	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/koanf"
 	"github.com/nats-io/nats.go"
@@ -66,29 +64,21 @@ func main() {
 		config *koanf.Koanf
 		dbconn *sqlx.DB
 
-		configPath               = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
-		dotEnvPath               = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
-		tlsCert                  = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
-		tlsKey                   = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
-		caCert                   = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
-		credsPath                = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
-		envPrefix                = flag.String("env-prefix", cfg.DefaultEnvPrefix, "The prefix for environment variables")
-		maxReconnects            = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
-		reconnectWait            = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
-		listenPort               = flag.Int("port", 60000, "The port the service listens on for requests")
-		queue                    = flag.String("queue", serviceName, "The AMQP queue name for this service")
-		reconnect                = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
-		logLevel                 = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
-		workerLifetimeFlag       = flag.String("worker-lifetime", "1h", "The lifetime of a worker. Must parse as a time.Duration.")
-		claimLifetimeFlag        = flag.String("claim-lifetime", "2m", "The lifetime of a work claim. Must parse as a time.Duration.")
-		seekingLifetimeFlag      = flag.String("seeking-lifetime", "2m", "The amount of time a worker may spend looking for a work item to process. Must parse as a time.Duration.")
-		refreshIntervalFlag      = flag.String("refresh-interval", "5m", "The time between worker re-registration/refreshes. Must parse as a time.Duration.")
-		purgeWorkersIntervalFlag = flag.String("purge-workers-interval", "6m", "The time between attempts to clean out expired workers. Must parse as a time.Duration.")
-		purgeSeekersIntervalFlag = flag.String("purge-seeker-interval", "5m", "The time between attempts to purge workers seeking work items for too long. Must parse as a time.Duration.")
-		purgeClaimsIntervalFlag  = flag.String("purge-claims-interval", "6m", "The time between attemtps to purge expired work claims. Must parse as a time.Duration.")
-		newUserTotalIntervalFlag = flag.String("new-user-total-interval", "365", "The number of days that user gets for new CPU hours tracking. Must parse as an integer.")
-		usageRoutingKey          = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
-		dataUsageBase            = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
+		configPath      = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
+		dotEnvPath      = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
+		tlsCert         = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
+		tlsKey          = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
+		caCert          = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
+		credsPath       = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
+		envPrefix       = flag.String("env-prefix", cfg.DefaultEnvPrefix, "The prefix for environment variables")
+		maxReconnects   = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
+		reconnectWait   = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
+		listenPort      = flag.Int("port", 60000, "The port the service listens on for requests")
+		queue           = flag.String("queue", serviceName, "The AMQP queue name for this service")
+		reconnect       = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
+		logLevel        = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
+		usageRoutingKey = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
+		dataUsageBase   = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
 	)
 
 	flag.Parse()
@@ -167,46 +157,6 @@ func main() {
 		log.Fatalf("The %sNATS_CLUSTER environment variable or nats.cluster configuration value must be set", *envPrefix)
 	}
 
-	workerLifetime, err := time.ParseDuration(*workerLifetimeFlag)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	refreshInterval, err := time.ParseDuration(*refreshIntervalFlag)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	purgeWorkersInterval, err := time.ParseDuration(*purgeWorkersIntervalFlag)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	purgeSeekersInterval, err := time.ParseDuration(*purgeSeekersIntervalFlag)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	purgeClaimsInterval, err := time.ParseDuration(*purgeClaimsIntervalFlag)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	claimLifetime, err := time.ParseDuration(*claimLifetimeFlag)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	seekingLifetime, err := time.ParseDuration(*seekingLifetimeFlag)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	newUserTotalInterval, err := strconv.ParseInt(*newUserTotalIntervalFlag, 10, 64)
-	if err != nil {
-		log.Fatal(err)
-	}
-
 	dbconn = otelsqlx.MustConnect("postgres", dbURI,
 		otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
 	log.Info("done connecting to the database")
@@ -283,30 +233,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	workerConfig := worker.Config{
-		Name:                    strings.ReplaceAll(uuid.New().String(), "-", ""),
-		ExpirationInterval:      workerLifetime,
-		RefreshInterval:         refreshInterval,
-		WorkerPurgeInterval:     purgeWorkersInterval,
-		WorkSeekerPurgeInterval: purgeSeekersInterval,
-		WorkClaimPurgeInterval:  purgeClaimsInterval,
-		ClaimLifetime:           claimLifetime,
-		WorkSeekingLifetime:     seekingLifetime,
-		NewUserTotalInterval:    newUserTotalInterval,
-		MessageSender:           app.SendUpdateCallback(),
-	}
-
-	log.Infof("worker name is %s", workerConfig.Name)
-
-	w, err := worker.New(context.Background(), &workerConfig, dbconn)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("worker ID is %s", w.ID)
-
-	go w.Start(context.Background())
 
 	log.Infof("listening on port %d", *listenPort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.Router()))

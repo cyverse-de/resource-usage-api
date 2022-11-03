@@ -7,7 +7,6 @@ import (
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/resource-usage-api/db"
-	"github.com/cyverse-de/resource-usage-api/worker"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -73,17 +72,4 @@ func (a *App) SendUpdate(ctx context.Context, usageEvent *db.CPUUsageWorkItem) e
 	log.Debug("done sending update")
 
 	return nil
-}
-
-// SendUpdateCallback returns a callback function that can be used to send a CPU usage update to QMS.
-func (a *App) SendUpdateCallback() worker.MessageSender {
-	return func(context context.Context, workItem *db.CPUUsageWorkItem) {
-		log = log.WithContext(context).WithField("context", "CPU usage update callback")
-		log.Debugf("processing work item %+v", workItem)
-		if err := a.SendUpdate(context, workItem); err != nil {
-			log.Errorf("unable to process work item %s: %s", workItem.ID, err)
-		} else {
-			log.Debugf("done processing work item %s", workItem.ID)
-		}
-	}
 }
