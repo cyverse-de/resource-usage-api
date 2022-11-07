@@ -30,6 +30,8 @@ import (
 	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
 	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 
+	_ "expvar"
+
 	_ "github.com/lib/pq"
 )
 

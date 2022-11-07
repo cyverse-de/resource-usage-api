@@ -108,13 +108,13 @@ spec:
             readOnly: true
         livenessProbe:
           httpGet:
-            path: /
+            path: /debug/vars
             port: 60000
           initialDelaySeconds: 5
           periodSeconds: 5
         readinessProbe:
           httpGet:
-            path: /
+            path: /debug/vars
             port: 60000
           initialDelaySeconds: 5
           periodSeconds: 5
