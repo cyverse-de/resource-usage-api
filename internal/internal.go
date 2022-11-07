@@ -83,40 +83,10 @@ func (a *App) Router() *echo.Echo {
 	a.router.Use(otelecho.Middleware("resource-usage-api"))
 
 	a.router.HTTPErrorHandler = logging.HTTPErrorHandler
-	a.router.GET("/", a.GreetingHandler).Name = "greeting"
 
 	summaryRoute := a.router.Group("/summary/:username")
 	summaryRoute.GET("/", a.GetUserSummary)
 	summaryRoute.GET("", a.GetUserSummary)
-
-	cpuroute := a.router.Group("/:username/cpu")
-	cpuroute.GET("/total", a.CurrentCPUHoursHandler)
-	cpuroute.GET("/total/all", a.AllCPUHoursHandler)
-
-	modifyroutes := cpuroute.Group("/update")
-	modifyroutes.POST("/add/:value", a.AddToTotalHandler)
-	modifyroutes.POST("/subtract/:value", a.SubtractFromTotalHandler)
-	modifyroutes.POST("/reset/:value", a.ResetTotalHandler)
-
-	admin := a.router.Group("/admin")
-
-	workers := admin.Group("/workers")
-	workers.GET("", a.AdminListWorkersHandler)
-	workers.GET("/", a.AdminListWorkersHandler)
-	workers.GET("/:id", a.AdminGetWorkerHandler)
-	workers.DELETE("/:id", a.AdminDeleteWorkerHandler)
-
-	cpuadmin := admin.Group("/cpu")
-	cpuadmin.GET("/totals", a.AdminAllCurrentCPUHoursHandler)
-	cpuadmin.GET("/totals/all", a.AdminAllCPUHoursTotalsHandler)
-	cpuadmin.POST("/recalculate/for/:username", a.AdminRecalculateCPUHoursTotalHandler)
-	cpuadmin.GET("/recalculate/can", a.AdminUsersWithCalculableAnalysesHandler)
-
-	events := cpuadmin.Group("/events")
-	events.GET("", a.AdminListEvents)
-	events.GET("/", a.AdminListEvents)
-	events.GET("/user/:username", a.AdminListAllUserEventsHandler)
-	events.GET("/:id", a.AdminGetEventHandler)
 
 	return a.router
 }
