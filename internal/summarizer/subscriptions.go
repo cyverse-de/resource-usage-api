@@ -39,10 +39,29 @@ func (s *SubscriptionSummarizer) LoadSummary() *UserSummary {
 
 	request.Username = s.User
 
+	log.Debug("before sending nats request")
 	response := pbinit.NewUserPlanResponse()
 	if err = gotelnats.Request(ctx, s.Client, subjects.QMSUserSummary, request, response); err != nil {
 		log.Error(err)
 		return nil
+	}
+	log.Debug("after sending nats request")
+
+	summary.UserPlan = &clients.UserPlan{
+		ID:                 response.UserPlan.Uuid,
+		EffectiveStartDate: response.UserPlan.EffectiveStartDate.AsTime(),
+		EffectiveEndDate:   response.UserPlan.EffectiveEndDate.AsTime(),
+		User: clients.User{
+			ID:       response.UserPlan.User.Uuid,
+			Username: response.UserPlan.User.Username,
+		},
+		Plan: clients.Plan{
+			ID:          response.UserPlan.Plan.Uuid,
+			Name:        response.UserPlan.Plan.Name,
+			Description: response.UserPlan.Plan.Description,
+		},
+		Quotas: make([]clients.Quota, 0),
+		Usages: make([]clients.Usage, 0),
 	}
 
 	for _, rQuota := range response.UserPlan.Quotas {
@@ -60,6 +79,8 @@ func (s *SubscriptionSummarizer) LoadSummary() *UserSummary {
 		summary.UserPlan.Quotas = append(summary.UserPlan.Quotas, q)
 
 	}
+
+	log.Debug("after settings quotas")
 
 	for _, rUsage := range response.UserPlan.Usages {
 		lma := rUsage.LastModifiedAt.AsTime()
@@ -114,19 +135,21 @@ func (s *SubscriptionSummarizer) LoadSummary() *UserSummary {
 		}
 	}
 
-	summary.UserPlan = &clients.UserPlan{
-		ID:                 response.UserPlan.Uuid,
-		EffectiveStartDate: response.UserPlan.EffectiveStartDate.AsTime(),
-		EffectiveEndDate:   response.UserPlan.EffectiveEndDate.AsTime(),
-		User: clients.User{
-			ID:       response.UserPlan.User.Uuid,
-			Username: response.UserPlan.User.Username,
-		},
-		Plan: clients.Plan{
-			ID:          response.UserPlan.Plan.Uuid,
-			Name:        response.UserPlan.Plan.Name,
-			Description: response.UserPlan.Plan.Description,
-		},
+	if summary.CPUUsage == nil {
+		summary.CPUUsage = &db.CPUHours{
+			EffectiveStart: response.UserPlan.EffectiveStartDate.AsTime(),
+			EffectiveEnd:   response.UserPlan.EffectiveEndDate.AsTime(),
+			UserID:         response.UserPlan.User.Uuid,
+			Username:       response.UserPlan.User.Username,
+		}
 	}
+
+	if summary.DataUsage == nil {
+		summary.DataUsage = &clients.UserDataUsage{
+			UserID:   response.UserPlan.User.Uuid,
+			Username: response.UserPlan.User.Username,
+		}
+	}
+
 	return &summary
 }
