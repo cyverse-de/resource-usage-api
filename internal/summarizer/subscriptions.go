@@ -31,6 +31,7 @@ func (s *SubscriptionSummarizer) LoadSummary() *UserSummary {
 	)
 
 	log := log.WithFields(logrus.Fields{"context": "load summary"})
+	request = pbinit.NewQMSRequestByUsername()
 	ctx, span := pbinit.InitQMSRequestByUsername(request, subjects.QMSUserSummary)
 	defer span.End()
 
