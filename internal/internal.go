@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/cyverse-de/resource-usage-api/amqp"
@@ -78,11 +79,15 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 
 	return app, nil
 }
+func (a *App) HelloHandler(c echo.Context) error {
+	return c.String(http.StatusOK, "Hello from resource-usage-api")
+}
 
 func (a *App) Router() *echo.Echo {
 	a.router.Use(otelecho.Middleware("resource-usage-api"))
 
 	a.router.HTTPErrorHandler = logging.HTTPErrorHandler
+	a.router.GET("/", a.HelloHandler)
 
 	summaryRoute := a.router.Group("/summary/:username")
 	summaryRoute.GET("/", a.GetUserSummary)
