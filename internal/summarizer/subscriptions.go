@@ -109,6 +109,7 @@ func (s *SubscriptionSummarizer) LoadSummary() *UserSummary {
 				Total:          *ct,
 				EffectiveStart: response.UserPlan.EffectiveStartDate.AsTime(),
 				EffectiveEnd:   response.UserPlan.EffectiveEndDate.AsTime(),
+				LastModified:   *u.LastModifiedAt,
 			}
 		}
 
