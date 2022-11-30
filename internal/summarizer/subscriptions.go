@@ -123,7 +123,7 @@ func (s *SubscriptionSummarizer) LoadSummary() *UserSummary {
 				log.Error(err)
 				return nil
 			}
-			dTime := rUsage.CreatedAt.AsTime()
+			dTime := rUsage.LastModifiedAt.AsTime()
 			summary.DataUsage = &clients.UserDataUsage{
 				ID:           rUsage.Uuid,
 				UserID:       response.UserPlan.User.Uuid,
