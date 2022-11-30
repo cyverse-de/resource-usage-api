@@ -6,20 +6,28 @@ import (
 	"time"
 
 	"github.com/cockroachdb/apd"
+	"github.com/cyverse-de/go-mod/gotelnats"
+	"github.com/cyverse-de/go-mod/pbinit"
+	"github.com/cyverse-de/go-mod/subjects"
+	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
+	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "cpuhours"})
 
 type CPUHours struct {
 	db *db.Database
+	nc *nats.EncodedConn
 }
 
-func New(db *db.Database) *CPUHours {
+func New(db *db.Database, nc *nats.EncodedConn) *CPUHours {
 	return &CPUHours{
 		db: db,
+		nc: nc,
 	}
 }
 
@@ -95,23 +103,44 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 func (c *CPUHours) addEvent(context context.Context, analysis *db.Analysis, cpuHours *apd.Decimal) error {
 	var err error
 
-	nowTime := time.Now()
-
-	event := db.CPUUsageEvent{
-		CreatedBy:     analysis.UserID,
-		EffectiveDate: nowTime,
-		RecordDate:    nowTime,
-		EventType:     db.CPUHoursAdd,
-		Value:         *cpuHours,
+	floatValue, err := cpuHours.Float64()
+	if err != nil {
+		return err
 	}
+
+	username, err := c.db.Username(context, analysis.UserID)
+	if err != nil {
+		return err
+	}
+
+	update := &qms.Update{
+		ValueType:     "usages",
+		Value:         floatValue,
+		EffectiveDate: timestamppb.Now(),
+		Operation: &qms.UpdateOperation{
+			Name: "ADD",
+		},
+		ResourceType: &qms.ResourceType{
+			Name: "cpu.hours",
+			Unit: "cpu hours",
+		},
+		User: &qms.QMSUser{
+			Username: username,
+		},
+	}
+
+	request := pbinit.NewAddUpdateRequest(update)
+	response := pbinit.NewQMSAddUpdateResponse()
+	_, span := pbinit.InitQMSAddUpdateRequest(request, subjects.QMSAddUserUpdate)
+	defer span.End()
 
 	log = log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
 
 	log.Debug("adding cpu usage event")
-	if err = c.db.AddCPUUsageEvent(context, &event); err != nil {
+	if err = gotelnats.Request(context, c.nc, subjects.QMSAddUserUpdate, request, response); err != nil {
 		return err
 	}
-	log.Debug("done adding cpu usage event")
+	log.Debug("after add cpu usage event")
 
 	return nil
 }

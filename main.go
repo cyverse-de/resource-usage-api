@@ -39,9 +39,9 @@ const serviceName = "resource-usage-api"
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
-func getHandler(dbClient *sqlx.DB) amqp.HandlerFn {
+func getHandler(dbClient *sqlx.DB, nc *nats.EncodedConn) amqp.HandlerFn {
 	dedb := db.New(dbClient)
-	cpuhours := cpuhours.New(dedb)
+	cpuhours := cpuhours.New(dedb, nc)
 
 	return func(context context.Context, externalID string, state messaging.JobState) {
 		var err error
@@ -165,30 +165,6 @@ func main() {
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
 
-	amqpConfig := amqp.Configuration{
-		URI:           amqpURI,
-		Exchange:      amqpExchange,
-		ExchangeType:  amqpExchangeType,
-		Reconnect:     *reconnect,
-		Queue:         *queue,
-		PrefetchCount: 0,
-	}
-
-	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
-	log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
-	log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
-	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
-	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
-
-	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer amqpClient.Close()
-	log.Debug("after close")
-
-	log.Info("done connecting to the AMQP broker")
-
 	nc, err := nats.Connect(
 		natsCluster,
 		nats.UserCredentials(*credsPath),
@@ -220,6 +196,30 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	amqpConfig := amqp.Configuration{
+		URI:           amqpURI,
+		Exchange:      amqpExchange,
+		ExchangeType:  amqpExchangeType,
+		Reconnect:     *reconnect,
+		Queue:         *queue,
+		PrefetchCount: 0,
+	}
+
+	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
+	log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
+	log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
+	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
+	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
+
+	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, natsClient))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer amqpClient.Close()
+	log.Debug("after close")
+
+	log.Info("done connecting to the AMQP broker")
 
 	appConfig := &internal.AppConfiguration{
 		UserSuffix:          userSuffix,

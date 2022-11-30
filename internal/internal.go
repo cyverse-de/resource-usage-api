@@ -53,7 +53,6 @@ func (a *App) FixUsername(username string) string {
 
 // New creates a new app instance for provided configuration.
 func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
-
 	// Create the client libraries for the downstream services.
 	dataUsageClient, err := clients.DataUsageAPIClient(config.DataUsageBaseURL)
 	if err != nil {
