@@ -2,6 +2,7 @@ package summarizer
 
 import (
 	"context"
+	"time"
 
 	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/go-mod/gotelnats"
@@ -146,9 +147,12 @@ func (s *SubscriptionSummarizer) LoadSummary() *UserSummary {
 	}
 
 	if summary.DataUsage == nil {
+		var zeroTimestamp time.Time
 		summary.DataUsage = &clients.UserDataUsage{
-			UserID:   response.UserPlan.User.Uuid,
-			Username: response.UserPlan.User.Username,
+			UserID:       response.UserPlan.User.Uuid,
+			Username:     response.UserPlan.User.Username,
+			Time:         &zeroTimestamp,
+			LastModified: &zeroTimestamp,
 		}
 	}
 
