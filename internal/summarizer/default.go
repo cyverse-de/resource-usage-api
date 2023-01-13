@@ -98,7 +98,7 @@ func (d *DefaultSummarizer) LoadSummary() *UserSummary {
 	d.loadDataUsage(&summary)
 
 	// This resource usage summarizer leaves the subscription information blank.
-	summary.UserPlan = nil
+	summary.Subscription = nil
 
 	return &summary
 }

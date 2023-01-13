@@ -96,6 +96,8 @@ github.com/cyverse-de/go-mod/pbinit v0.0.11 h1:y/SkGwYJBkLBfNrjNilqyLsgpJiu9mvI4
 github.com/cyverse-de/go-mod/pbinit v0.0.11/go.mod h1:LQum+1DVzEtQhOila6gZEB6AcUePLalvvqWTpdXt+lA=
 github.com/cyverse-de/go-mod/pbinit v0.0.15 h1:AVy9Te4DS/vzyV0WkrnQ1VfWkFtGXLlrDhce841nMLk=
 github.com/cyverse-de/go-mod/pbinit v0.0.15/go.mod h1:olSiblycPLTy4IFu3hnmHjZG0CkB2Uk02ldXfv3wea4=
+github.com/cyverse-de/go-mod/pbinit v0.1.0 h1:XtP5JECr5bi4i0xIR4W2UQOJJGQAfS2LNI9rebHKI98=
+github.com/cyverse-de/go-mod/pbinit v0.1.0/go.mod h1:9JN/oBPmtdxepTHUbYsjEWUxdfXDDnuY1dbSH9zO6es=
 github.com/cyverse-de/go-mod/protobufjson v0.0.3 h1:XTIZejY7EUbpF6ZdhRhiFX9PGYDkGGmPP760cDswGWM=
 github.com/cyverse-de/go-mod/protobufjson v0.0.3/go.mod h1:p/ASemjpl2GEFYb3Tt7N8RozViwonsK0fOm0LxYeCt8=
 github.com/cyverse-de/go-mod/subjects v0.0.3 h1:kShf8J9IT+klXObIV7M6TAIy7TFa3vNlDy6kZAQm4ig=
@@ -122,6 +124,8 @@ github.com/cyverse-de/p/go/qms v0.0.12 h1:wdMDlyoZaKL5oLMRuBajKgva2VoKxOJQ8/820g
 github.com/cyverse-de/p/go/qms v0.0.12/go.mod h1:149A1Fx/vO7ovgEXaodYCLPvsX1squLb7u6MaSya3oM=
 github.com/cyverse-de/p/go/qms v0.0.19 h1:CkYr/M3vgOiZbCD1zhXPnAZn+911Btqbl1YPKXoIU3Y=
 github.com/cyverse-de/p/go/qms v0.0.19/go.mod h1:2zWzMlzjUeGWErAuovBkfD39rPFrqsbKOjl8tUy36I4=
+github.com/cyverse-de/p/go/qms v0.1.0 h1:nH9fdPx09tFqfNp8NKG+tCRcUYdNYKl1UO9xyul6/qk=
+github.com/cyverse-de/p/go/qms v0.1.0/go.mod h1:lDNWgFPsT0sg3fqHHEE2yhERNsfFueYJiprxtoOnp4c=
 github.com/cyverse-de/p/go/svcerror v0.0.5 h1:WbUcU4VjbNU0agfrHJOCy9orAY72WJWo92b1vR3+3sw=
 github.com/cyverse-de/p/go/svcerror v0.0.5/go.mod h1:WCGIrhW0KXtSu86YhjU/JXG8LrZs5wJPBCH4wvnFYcQ=
 github.com/cyverse-de/p/go/svcerror v0.0.7 h1:PScx8ctSBtnkER6ypgWsuxe8p3/jgfh6t/Dy5J9tg48=

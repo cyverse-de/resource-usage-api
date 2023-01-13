@@ -35,8 +35,8 @@ type Usage struct {
 	LastModifiedAt *time.Time   `json:"last_modified_at"`
 }
 
-// UserPlan is the representation of a user plan.
-type UserPlan struct {
+// Subscription is the representation of a user plan.
+type Subscription struct {
 	ID                 string    `json:"id"`
 	EffectiveStartDate time.Time `json:"effective_start_date"`
 	EffectiveEndDate   time.Time `json:"effective_end_date"`
@@ -53,7 +53,7 @@ const (
 )
 
 // ExtractUsage extracts the usage record for a given resource type from the user plan.
-func (up *UserPlan) ExtractUsage(resourceType string) *Usage {
+func (up *Subscription) ExtractUsage(resourceType string) *Usage {
 
 	// Search for the usage record matching the givn resource type.
 	for _, usageRecord := range up.Usages {
