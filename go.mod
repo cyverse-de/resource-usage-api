@@ -9,7 +9,7 @@ require (
 	github.com/cyverse-de/go-mod/otelutils v0.0.2
 	github.com/cyverse-de/go-mod/pbinit v0.1.0
 	github.com/cyverse-de/go-mod/protobufjson v0.0.3
-	github.com/cyverse-de/go-mod/subjects v0.0.6
+	github.com/cyverse-de/go-mod/subjects v0.1.0
 	github.com/cyverse-de/messaging/v9 v9.1.4
 	github.com/cyverse-de/p/go/qms v0.1.0
 	github.com/guregu/null v4.0.0+incompatible

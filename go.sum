@@ -104,6 +104,8 @@ github.com/cyverse-de/go-mod/subjects v0.0.3 h1:kShf8J9IT+klXObIV7M6TAIy7TFa3vNl
 github.com/cyverse-de/go-mod/subjects v0.0.3/go.mod h1:x8P+TNVSXvehkWMAmrg1RQHc5CCGafqtTKUn0hklkFA=
 github.com/cyverse-de/go-mod/subjects v0.0.6 h1:gQ3Rb2Tu7/kQMRCI1iSTyDB6yTHCUiZP8nDm3JyIJ4E=
 github.com/cyverse-de/go-mod/subjects v0.0.6/go.mod h1:x8P+TNVSXvehkWMAmrg1RQHc5CCGafqtTKUn0hklkFA=
+github.com/cyverse-de/go-mod/subjects v0.1.0 h1:ba9v19djad2a+p+TmQiDsl668p2XLt5fhNd24R2rpwU=
+github.com/cyverse-de/go-mod/subjects v0.1.0/go.mod h1:x8P+TNVSXvehkWMAmrg1RQHc5CCGafqtTKUn0hklkFA=
 github.com/cyverse-de/messaging/v9 v9.1.4 h1:DRMqWWT6nAGAnCk2Ajcikm13CJimttgQ5ClrvEA5UNw=
 github.com/cyverse-de/messaging/v9 v9.1.4/go.mod h1:bGZRCqilJTPBmWrgsyuupi3KRgkjQNs8yYNxZWZh8DI=
 github.com/cyverse-de/model/v6 v6.0.1 h1:6c0Tkl0hIbaJj7paI872QAPyvX9bhZNH93o37zDZG0s=
