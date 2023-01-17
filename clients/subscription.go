@@ -53,10 +53,10 @@ const (
 )
 
 // ExtractUsage extracts the usage record for a given resource type from the user plan.
-func (up *Subscription) ExtractUsage(resourceType string) *Usage {
+func (s *Subscription) ExtractUsage(resourceType string) *Usage {
 
 	// Search for the usage record matching the givn resource type.
-	for _, usageRecord := range up.Usages {
+	for _, usageRecord := range s.Usages {
 		if usageRecord.ResourceType.Name == resourceType {
 			return &usageRecord
 		}
