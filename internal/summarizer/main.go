@@ -23,10 +23,10 @@ func NewAPIError(field string, message string, errorCode int) *APIError {
 // UserSummary contains the data summarizing the user's current resource
 // usages and their current plan.
 type UserSummary struct {
-	CPUUsage  *db.CPUHours           `json:"cpu_usage"`
-	DataUsage *clients.UserDataUsage `json:"data_usage"`
-	UserPlan  *clients.UserPlan      `json:"user_plan"`
-	Errors    []APIError             `json:"errors"`
+	CPUUsage     *db.CPUHours           `json:"cpu_usage"`
+	DataUsage    *clients.UserDataUsage `json:"data_usage"`
+	Subscription *clients.Subscription  `json:"subscription"`
+	Errors       []APIError             `json:"errors"`
 }
 
 // The interface used to load the usage summary information.

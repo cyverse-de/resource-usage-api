@@ -32,8 +32,8 @@ func QMSAPIClient(baseURL string) (*QMSAPI, error) {
 	return &QMSAPI{baseURL: url}, nil
 }
 
-type UserPlanResult struct {
-	Result UserPlan `json:"result"`
+type SubscriptionResult struct {
+	Result Subscription `json:"result"`
 }
 
 // qmsURL returns a URL that can be used to connect to QMS. The URL path is determined by the base URL and the path
@@ -42,9 +42,9 @@ func (c QMSAPI) qmsURL(components ...string) *url.URL {
 	return BuildURL(c.baseURL, components...)
 }
 
-// GetUserPlan retrieves the subscription information for the given user.
-func (c *QMSAPI) GetUserPlan(ctx context.Context, username string) (*UserPlan, error) {
-	var upr UserPlanResult
+// GetSubscription retrieves the subscription information for the given user.
+func (c *QMSAPI) GetSubscription(ctx context.Context, username string) (*Subscription, error) {
+	var upr SubscriptionResult
 
 	// Build the request.
 	requestURL := c.qmsURL("v1", "users", StripUsernameSuffix(username), "plan")
