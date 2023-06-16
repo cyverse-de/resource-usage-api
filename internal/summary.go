@@ -3,14 +3,10 @@ package internal
 import (
 	"net/http"
 
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-
 	"github.com/cyverse-de/resource-usage-api/internal/summarizer"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 )
-
-var client = http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 
 const otelName = "github.com/cyverse-de/resource-usage-api/internal"
 
