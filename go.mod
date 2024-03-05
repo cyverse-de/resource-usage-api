@@ -1,6 +1,6 @@
 module github.com/cyverse-de/resource-usage-api
 
-go 1.18
+go 1.21
 
 require (
 	github.com/cockroachdb/apd v1.1.0
