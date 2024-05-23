@@ -1,4 +1,4 @@
-FROM golang:1.21 as build-root
+FROM golang:1.22 as build-root
 
 WORKDIR /go/src/github.com/cyverse-de/resource-usage-api
 COPY . .
