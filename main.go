@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -103,10 +102,6 @@ func main() {
 	log.Infof("NATS CA cert file is %s", *caCert)
 	log.Infof("NATS creds file is %s", *credsPath)
 	log.Infof("dotenv file is %s", *dotEnvPath)
-
-	if _, err = os.Open(*dotEnvPath); err != nil {
-		log.Fatal(err)
-	}
 
 	config, err = cfg.Init(&cfg.Settings{
 		EnvPrefix:   *envPrefix,
