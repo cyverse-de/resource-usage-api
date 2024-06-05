@@ -47,9 +47,8 @@ func GetStatusCode(e error) int {
 	herror, ok := e.(*HTTPError)
 	if ok {
 		return herror.StatusCode()
-	} else {
-		return http.StatusInternalServerError
 	}
+	return http.StatusInternalServerError
 }
 
 // BuildURL builds a URL from a base URL and zero or URL path components.
