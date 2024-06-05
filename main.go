@@ -66,21 +66,22 @@ func main() {
 		config *koanf.Koanf
 		dbconn *sqlx.DB
 
-		configPath      = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
-		dotEnvPath      = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
-		tlsCert         = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
-		tlsKey          = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
-		caCert          = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
-		credsPath       = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
-		envPrefix       = flag.String("env-prefix", cfg.DefaultEnvPrefix, "The prefix for environment variables")
-		maxReconnects   = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
-		reconnectWait   = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
-		listenPort      = flag.Int("port", 60000, "The port the service listens on for requests")
-		queue           = flag.String("queue", serviceName, "The AMQP queue name for this service")
-		reconnect       = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
-		logLevel        = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
-		usageRoutingKey = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
-		dataUsageBase   = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
+		configPath        = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
+		dotEnvPath        = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
+		tlsCert           = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
+		tlsKey            = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
+		caCert            = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
+		credsPath         = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
+		envPrefix         = flag.String("env-prefix", cfg.DefaultEnvPrefix, "The prefix for environment variables")
+		maxReconnects     = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
+		reconnectWait     = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
+		listenPort        = flag.Int("port", 60000, "The port the service listens on for requests")
+		queue             = flag.String("queue", serviceName, "The AMQP queue name for this service")
+		reconnect         = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
+		logLevel          = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
+		usageRoutingKey   = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
+		dataUsageBase     = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
+		subscriptionsBase = flag.String("subscriptions-base-uri", "http://subscriptions", "The base URL for contacting the subscriptions service")
 	)
 
 	flag.Parse()
@@ -143,6 +144,11 @@ func main() {
 	userSuffix := config.String("users.domain")
 	if userSuffix == "" {
 		log.Fatal("users.domain must be set in the configuration file")
+	}
+
+	subscriptionsURI := config.String("subscrptions.uri")
+	if subscriptionsURI == "" {
+		subscriptionsURI = "http://subscriptions"
 	}
 
 	qmsEnabled := config.Bool("qms.enabled")
@@ -222,13 +228,14 @@ func main() {
 	log.Info("done connecting to the AMQP broker")
 
 	appConfig := &internal.AppConfiguration{
-		UserSuffix:          userSuffix,
-		DataUsageBaseURL:    *dataUsageBase,
-		AMQPClient:          amqpClient,
-		NATSClient:          natsClient,
-		AMQPUsageRoutingKey: *usageRoutingKey,
-		QMSEnabled:          qmsEnabled,
-		QMSBaseURL:          qmsBaseURL,
+		UserSuffix:           userSuffix,
+		DataUsageBaseURL:     *dataUsageBase,
+		AMQPClient:           amqpClient,
+		NATSClient:           natsClient,
+		AMQPUsageRoutingKey:  *usageRoutingKey,
+		QMSEnabled:           qmsEnabled,
+		QMSBaseURL:           qmsBaseURL,
+		SubscriptionsBaseURI: *subscriptionsBase,
 	}
 
 	app, err := internal.New(dbconn, appConfig)
