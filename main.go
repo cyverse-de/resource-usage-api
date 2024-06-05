@@ -4,7 +4,6 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -68,6 +67,8 @@ func main() {
 
 		configPath        = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
 		dotEnvPath        = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
+		noCreds           = flag.Bool("no-creds", false, "Turn off NATS creds support")
+		noTLS             = flag.Bool("no-tls", false, "Turn off TLS support in the NATS connection")
 		tlsCert           = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
 		tlsKey            = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
 		caCert            = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
@@ -105,9 +106,9 @@ func main() {
 	log.Infof("NATS creds file is %s", *credsPath)
 	log.Infof("dotenv file is %s", *dotEnvPath)
 
-	if _, err = os.Open(*dotEnvPath); err != nil {
-		log.Fatal(err)
-	}
+	// if _, err = os.Open(*dotEnvPath); err != nil {
+	// 	log.Fatal(err)
+	// }
 
 	config, err = cfg.Init(&cfg.Settings{
 		EnvPrefix:   *envPrefix,
@@ -171,14 +172,10 @@ func main() {
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
 
-	nc, err := nats.Connect(
-		natsCluster,
-		nats.UserCredentials(*credsPath),
-		nats.RootCAs(*caCert),
-		nats.ClientCert(*tlsCert, *tlsKey),
+	options := []nats.Option{
 		nats.RetryOnFailedConnect(true),
 		nats.MaxReconnects(*maxReconnects),
-		nats.ReconnectWait(time.Duration(*reconnectWait)*time.Second),
+		nats.ReconnectWait(time.Duration(*reconnectWait) * time.Second),
 		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
 			if err != nil {
 				log.Errorf("disconnected from nats: %s", err.Error())
@@ -190,6 +187,20 @@ func main() {
 		nats.ClosedHandler(func(nc *nats.Conn) {
 			log.Errorf("connection closed: %s", nc.LastError().Error())
 		}),
+	}
+
+	if !*noTLS {
+		options = append(options, nats.RootCAs(*caCert))
+		options = append(options, nats.ClientCert(*tlsCert, *tlsKey))
+	}
+
+	if !*noCreds {
+		options = append(options, nats.UserCredentials(*credsPath))
+	}
+
+	nc, err := nats.Connect(
+		natsCluster,
+		options...,
 	)
 	if err != nil {
 		log.Fatal(err)
