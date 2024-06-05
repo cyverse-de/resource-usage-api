@@ -143,11 +143,6 @@ func main() {
 		log.Fatal("users.domain must be set in the configuration file")
 	}
 
-	subscriptionsURI := config.String("subscrptions.uri")
-	if subscriptionsURI == "" {
-		subscriptionsURI = "http://subscriptions"
-	}
-
 	qmsEnabled := config.Bool("qms.enabled")
 	qmsBaseURL := config.String("qms.base")
 
