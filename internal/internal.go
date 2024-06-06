@@ -21,15 +21,16 @@ var log = logging.Log.WithFields(logrus.Fields{"package": "internal"})
 
 // App encapsulates the application logic.
 type App struct {
-	database            *sqlx.DB
-	router              *echo.Echo
-	userSuffix          string
-	dataUsageClient     *clients.DataUsageAPI
-	amqpClient          *amqp.AMQP
-	natsClient          *nats.EncodedConn
-	amqpUsageRoutingKey string
-	qmsClient           *clients.QMSAPI
-	qmsEnabled          bool
+	database             *sqlx.DB
+	router               *echo.Echo
+	userSuffix           string
+	dataUsageClient      *clients.DataUsageAPI
+	amqpClient           *amqp.AMQP
+	natsClient           *nats.EncodedConn
+	amqpUsageRoutingKey  string
+	qmsClient            *clients.QMSAPI
+	qmsEnabled           bool
+	subscriptionsBaseURI string
 }
 
 // AppConfiguration contains the settings needed to configure the App.
@@ -42,6 +43,7 @@ type AppConfiguration struct {
 	AMQPUsageRoutingKey      string
 	QMSEnabled               bool
 	QMSBaseURL               string
+	SubscriptionsBaseURI     string
 }
 
 func (a *App) FixUsername(username string) string {
@@ -65,15 +67,16 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 
 	// Create the app instance.
 	app := &App{
-		database:            db,
-		router:              echo.New(),
-		userSuffix:          config.UserSuffix,
-		dataUsageClient:     dataUsageClient,
-		amqpClient:          config.AMQPClient,
-		natsClient:          config.NATSClient,
-		amqpUsageRoutingKey: config.AMQPUsageRoutingKey,
-		qmsClient:           qmsClient,
-		qmsEnabled:          config.QMSEnabled,
+		database:             db,
+		router:               echo.New(),
+		userSuffix:           config.UserSuffix,
+		dataUsageClient:      dataUsageClient,
+		amqpClient:           config.AMQPClient,
+		natsClient:           config.NATSClient,
+		amqpUsageRoutingKey:  config.AMQPUsageRoutingKey,
+		qmsClient:            qmsClient,
+		qmsEnabled:           config.QMSEnabled,
+		subscriptionsBaseURI: config.SubscriptionsBaseURI,
 	}
 
 	return app, nil
