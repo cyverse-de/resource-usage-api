@@ -47,10 +47,10 @@ type AppConfiguration struct {
 }
 
 func (a *App) FixUsername(username string) string {
-	if !strings.HasSuffix(username, a.userSuffix) {
+	if !strings.HasSuffix(a.userSuffix, username) {
 		// Only add a @ if the configured user suffix doesn't already
 		// start with one.
-		if strings.HasPrefix("@", a.userSuffix) {
+		if strings.HasPrefix(a.userSuffix, "@") {
 			return fmt.Sprintf("%s%s", username, a.userSuffix)
 		}
 		return fmt.Sprintf("%s@%s", username, a.userSuffix)
