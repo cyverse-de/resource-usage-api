@@ -1,3 +1,4 @@
+.env
 resource-usage-api
 **/jobservices.yml
 configs/local.yml
