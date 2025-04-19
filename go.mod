@@ -1,8 +1,6 @@
 module github.com/cyverse-de/resource-usage-api
 
-go 1.22
-
-toolchain go1.22.2
+go 1.24.2
 
 require (
 	github.com/cockroachdb/apd v1.1.0
@@ -13,7 +11,7 @@ require (
 	github.com/cyverse-de/go-mod/protobufjson v0.0.3
 	github.com/cyverse-de/go-mod/subjects v0.1.4
 	github.com/cyverse-de/messaging/v9 v9.1.5
-	github.com/cyverse-de/p/go/qms v0.1.13
+	github.com/cyverse-de/p/go/qms v0.2.0
 	github.com/guregu/null v4.0.0+incompatible
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/knadh/koanf v1.5.0
@@ -30,7 +28,7 @@ require (
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.49.0
 	go.opentelemetry.io/otel v1.24.0
 	golang.org/x/net v0.22.0
-	google.golang.org/protobuf v1.33.0
+	google.golang.org/protobuf v1.36.6
 )
 
 require (

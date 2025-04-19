@@ -88,8 +88,6 @@ github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfc
 github.com/cyverse-de/configurate v0.0.0-20190318152107-8f767cb828d9/go.mod h1:QMZ4G8bX5f0vKiH9+/2JqV687mN1byJ18tjZwIJIagI=
 github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9 h1:jP5qovGyyjCn9/1KFOzTPLlHk0XUFvJpF1wavZzEnss=
 github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9/go.mod h1:WHo3kihlw77gqpWScUucrBgAV0t63mkoc3uD6GXnMBo=
-github.com/cyverse-de/go-mod/cfg v0.0.1 h1:rCNNrGSTHYbnygepgDplBRPZhHQ8SR1zSRCkN0o/mOc=
-github.com/cyverse-de/go-mod/cfg v0.0.1/go.mod h1:9yHgS328eyTam8Ji//3oOb4ckOT/o5Qp0iSXZk5cVeM=
 github.com/cyverse-de/go-mod/cfg v0.0.2 h1:evHNKqLwOPWHhxxzF498/Rtac7LZb1zxnHAjZSuqiEo=
 github.com/cyverse-de/go-mod/cfg v0.0.2/go.mod h1:jjn1fZJRwqKiYgiS5AcXg9Dzxp2QOiLyrWVWCcq9Dw0=
 github.com/cyverse-de/go-mod/gotelnats v0.0.11 h1:jpnnGrCUnBq1oUow6vujXaW3oiqusViqFUGpJD4njB0=
@@ -116,8 +114,8 @@ github.com/cyverse-de/p/go/header v0.0.4 h1:asY/uixi9rCqbDLq2G21CT7WJRaendBfr1z2
 github.com/cyverse-de/p/go/header v0.0.4/go.mod h1:1j79PqvJyMRmXXKyW4KbZWGQNontm0B9smsaq5t5Ct8=
 github.com/cyverse-de/p/go/monitoring v0.0.5 h1:n+GdL9a3R1zM7L+18SIufrtmLxXU8L/cKX6DhOJ7IhY=
 github.com/cyverse-de/p/go/monitoring v0.0.5/go.mod h1:CB0aMpTRJvCFlGeL/75uX4Snj/OXj9wzKF5KQX4tASg=
-github.com/cyverse-de/p/go/qms v0.1.13 h1:4pcBCETTKwCYo9L3zfbQy92TXbaH/wv/VVyc3LGMl9E=
-github.com/cyverse-de/p/go/qms v0.1.13/go.mod h1:Uv07x99AFaFmFwIwa3xTrN6bRxr76J7wK6R3Fgt/UG4=
+github.com/cyverse-de/p/go/qms v0.2.0 h1:a1ToLYoKGfGw/AeIIexfES/DH1WSJ4VjPFssJYnica8=
+github.com/cyverse-de/p/go/qms v0.2.0/go.mod h1:J23CvbPbm4tFqsD6HBmU1kG/vzUbI3MIDkjCgj3S/Kw=
 github.com/cyverse-de/p/go/svcerror v0.0.8 h1:UE06rE31kk7OcciTQlZfrJTFlC9AMTfNf6JKll41u0U=
 github.com/cyverse-de/p/go/svcerror v0.0.8/go.mod h1:0h/BngUR9cTV86LYqHMkdREFcxJuMyOJV6f3u6Un4LQ=
 github.com/cyverse-de/p/go/user v0.0.11 h1:VM2WGrdvcmDLwwjUJpCbrhC5te8xFY8f71ALFO2N7LI=
@@ -928,8 +926,8 @@ google.golang.org/protobuf v1.24.0/go.mod h1:r/3tXBNzIEhYS9I1OUVjXDlt8tc493IdKGj
 google.golang.org/protobuf v1.25.0/go.mod h1:9JNX74DMeImyA3h4bdi1ymwjUzf21/xIlbajtzgsN7c=
 google.golang.org/protobuf v1.26.0-rc.1/go.mod h1:jlhhOSvTdKEhbULTjvd4ARK9grFBp09yW+WbY/TyQbw=
 google.golang.org/protobuf v1.26.0/go.mod h1:9q0QmTI4eRPtz6boOQmLYwt+qCgq0jsYwAQnmE0givc=
-google.golang.org/protobuf v1.33.0 h1:uNO2rsAINq/JlFpSdYEKIZ0uKD/R9cpdv0T+yoGwGmI=
-google.golang.org/protobuf v1.33.0/go.mod h1:c6P6GXX6sHbq/GpV6MGZEdwhWPcYBgnhAHhKbcUYpos=
+google.golang.org/protobuf v1.36.6 h1:z1NpPI8ku2WgiWnf+t9wTPsn6eP1L7ksHUlkfLvd9xY=
+google.golang.org/protobuf v1.36.6/go.mod h1:jduwjTPXsFjZGTmRluh+L6NjiWu7pchiJ2/5YcXBHnY=
 gopkg.in/alecthomas/kingpin.v2 v2.2.6/go.mod h1:FMv+mEhP44yOT+4EoQTLFTRgOQ1FBLkstjWtayDeSgw=
 gopkg.in/asn1-ber.v1 v1.0.0-20181015200546-f715ec2f112d/go.mod h1:cuepJuh7vyXfUyUwEgHQXw849cJrilpS5NeIjOWESAw=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
