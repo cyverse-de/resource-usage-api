@@ -77,6 +77,7 @@ func (h *HTTPSummarizer) LoadSummary() *UserSummary {
 		},
 		Quotas: make([]clients.Quota, 0),
 		Usages: make([]clients.Usage, 0),
+		Addons: make([]clients.SubscriptionAddon, 0),
 	}
 
 	for _, rQuota := range response.Subscription.Quotas {
@@ -149,6 +150,33 @@ func (h *HTTPSummarizer) LoadSummary() *UserSummary {
 				LastModified: &lma,
 			}
 		}
+	}
+
+	for _, rSubsAddon := range response.Subscription.Addons {
+		addonRateEffectiveDate := rSubsAddon.AddonRate.EffectiveDate.AsTime()
+		a := clients.SubscriptionAddon{
+			ID: rSubsAddon.Uuid,
+			Addon: clients.Addon{
+				ID:          rSubsAddon.Addon.Uuid,
+				Name:        rSubsAddon.Addon.Name,
+				Description: rSubsAddon.Addon.Description,
+				ResourceType: clients.ResourceType{
+					ID:   rSubsAddon.Addon.ResourceType.Uuid,
+					Name: rSubsAddon.Addon.ResourceType.Name,
+					Unit: rSubsAddon.Addon.ResourceType.Unit,
+				},
+				DefaultAmount: float64(rSubsAddon.Addon.DefaultAmount),
+				DefaultPaid:   rSubsAddon.Addon.DefaultPaid,
+			},
+			Amount: float64(rSubsAddon.Amount),
+			Paid:   rSubsAddon.Paid,
+			AddonRate: clients.AddonRate{
+				ID:            rSubsAddon.AddonRate.Uuid,
+				EffectiveDate: addonRateEffectiveDate,
+				Rate:          float64(rSubsAddon.AddonRate.Rate),
+			},
+		}
+		summary.Subscription.Addons = append(summary.Subscription.Addons, a)
 	}
 
 	if summary.CPUUsage == nil {

@@ -35,15 +35,39 @@ type Usage struct {
 	LastModifiedAt *time.Time   `json:"last_modified_at"`
 }
 
+type Addon struct {
+	ID            string       `json:"id"`
+	Name          string       `json:"name"`
+	Description   string       `json:"description"`
+	ResourceType  ResourceType `json:"resource_type"`
+	DefaultAmount float64      `json:"default_amount"`
+	DefaultPaid   bool         `json:"default_paid"`
+}
+
+type AddonRate struct {
+	ID            string    `json:"id"`
+	EffectiveDate time.Time `json:"effective_date"`
+	Rate          float64   `json:"rate"`
+}
+
+type SubscriptionAddon struct {
+	ID        string    `json:"id"`
+	Addon     Addon     `json:"addon"`
+	Amount    float64   `json:"amount"`
+	Paid      bool      `json:"paid"`
+	AddonRate AddonRate `json:"addon_rate"`
+}
+
 // Subscription is the representation of a user plan.
 type Subscription struct {
-	ID                 string    `json:"id"`
-	EffectiveStartDate time.Time `json:"effective_start_date"`
-	EffectiveEndDate   time.Time `json:"effective_end_date"`
-	User               User      `json:"users"`
-	Plan               Plan      `json:"plan"`
-	Quotas             []Quota   `json:"quotas"`
-	Usages             []Usage   `json:"usages"`
+	ID                 string              `json:"id"`
+	EffectiveStartDate time.Time           `json:"effective_start_date"`
+	EffectiveEndDate   time.Time           `json:"effective_end_date"`
+	User               User                `json:"users"`
+	Plan               Plan                `json:"plan"`
+	Quotas             []Quota             `json:"quotas"`
+	Usages             []Usage             `json:"usages"`
+	Addons             []SubscriptionAddon `json:"addons"`
 }
 
 // Resource type name constants.
