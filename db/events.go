@@ -47,7 +47,7 @@ func (d *Database) AddCPUUsageEvent(context context.Context, event *CPUUsageEven
 			($1, $2, (SELECT id FROM cpu_usage_event_types WHERE name = $3), $4, $5);
 	`
 
-	_, err := d.db.ExecContext(
+	_, err := d.Q().ExecContext(
 		context,
 		q,
 		event.RecordDate,
@@ -68,7 +68,7 @@ func (d *Database) ClaimEvent(context context.Context, id, claimedBy string) err
 			claimed_by = $2
 		WHERE id = $1;
 	`
-	_, err := d.db.ExecContext(context, q, id, claimedBy)
+	_, err := d.Q().ExecContext(context, q, id, claimedBy)
 	return err
 }
 
@@ -81,7 +81,7 @@ func (d *Database) ProcessingEvent(context context.Context, id string) error {
 			attempts = attempts + 1
 		WHERE id = $1;
 	`
-	_, err := d.db.ExecContext(context, q, id)
+	_, err := d.Q().ExecContext(context, q, id)
 	return err
 }
 
@@ -93,7 +93,7 @@ func (d *Database) FinishedProcessingEvent(context context.Context, id string) e
 			processed = true
 		WHERE id = $1;
 	`
-	_, err := d.db.ExecContext(context, q, id)
+	_, err := d.Q().ExecContext(context, q, id)
 	return err
 }
 
@@ -130,7 +130,7 @@ func (d *Database) UnclaimedUnprocessedEvents(context context.Context) ([]CPUUsa
 		AND CURRENT_TIMESTAMP >= COALESCE(c.claim_expires_on, to_timestamp(0));
 	`
 
-	rows, err := d.db.QueryxContext(context, q)
+	rows, err := d.Q().QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (d *Database) ListEvents(context context.Context) ([]CPUUsageWorkItem, erro
 		JOIN cpu_usage_event_types e ON c.event_type_id = e.id;
 	`
 
-	rows, err := d.db.QueryxContext(context, q)
+	rows, err := d.Q().QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +225,7 @@ func (d *Database) ListAllUserEvents(context context.Context, username string) (
 		WHERE u.username = $1;
 	`
 
-	rows, err := d.db.QueryxContext(context, q, username)
+	rows, err := d.Q().QueryxContext(context, q, username)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +271,7 @@ func (d *Database) Event(context context.Context, id string) (*CPUUsageWorkItem,
 		JOIN cpu_usage_event_types e ON c.event_type_id = e.id
 		WHERE c.id = $1;
 	`
-	err := d.db.QueryRowxContext(context, q, id).StructScan(&workItem)
+	err := d.Q().QueryRowxContext(context, q, id).StructScan(&workItem)
 	if err != nil {
 		return nil, err
 	}
@@ -298,7 +298,7 @@ func (d *Database) UpdateEvent(context context.Context, workItem *CPUUsageWorkIt
 		WHERE id = $1;
 	`
 
-	_, err := d.db.ExecContext(
+	_, err := d.Q().ExecContext(
 		context,
 		q,
 		workItem.ID,
@@ -324,6 +324,6 @@ func (d *Database) DeleteEvent(context context.Context, id string) error {
 	const q = `
 		DELETE FROM cpu_usage_events WHERE id = $1;
 	`
-	_, err := d.db.ExecContext(context, q, id)
+	_, err := d.Q().ExecContext(context, q, id)
 	return err
 }
