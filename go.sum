@@ -114,8 +114,8 @@ github.com/cyverse-de/p/go/header v0.0.4 h1:asY/uixi9rCqbDLq2G21CT7WJRaendBfr1z2
 github.com/cyverse-de/p/go/header v0.0.4/go.mod h1:1j79PqvJyMRmXXKyW4KbZWGQNontm0B9smsaq5t5Ct8=
 github.com/cyverse-de/p/go/monitoring v0.0.5 h1:n+GdL9a3R1zM7L+18SIufrtmLxXU8L/cKX6DhOJ7IhY=
 github.com/cyverse-de/p/go/monitoring v0.0.5/go.mod h1:CB0aMpTRJvCFlGeL/75uX4Snj/OXj9wzKF5KQX4tASg=
-github.com/cyverse-de/p/go/qms v0.2.1 h1:k6kEx1NR+zIZSDLXIeoS81O15JfbosdOf7gDg+ez82U=
-github.com/cyverse-de/p/go/qms v0.2.1/go.mod h1:J23CvbPbm4tFqsD6HBmU1kG/vzUbI3MIDkjCgj3S/Kw=
+github.com/cyverse-de/p/go/qms v0.2.0 h1:a1ToLYoKGfGw/AeIIexfES/DH1WSJ4VjPFssJYnica8=
+github.com/cyverse-de/p/go/qms v0.2.0/go.mod h1:J23CvbPbm4tFqsD6HBmU1kG/vzUbI3MIDkjCgj3S/Kw=
 github.com/cyverse-de/p/go/svcerror v0.0.8 h1:UE06rE31kk7OcciTQlZfrJTFlC9AMTfNf6JKll41u0U=
 github.com/cyverse-de/p/go/svcerror v0.0.8/go.mod h1:0h/BngUR9cTV86LYqHMkdREFcxJuMyOJV6f3u6Un4LQ=
 github.com/cyverse-de/p/go/user v0.0.11 h1:VM2WGrdvcmDLwwjUJpCbrhC5te8xFY8f71ALFO2N7LI=

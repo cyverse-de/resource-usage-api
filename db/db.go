@@ -32,65 +32,14 @@ type DatabaseAccessor interface {
 	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
 	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
 	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-	BeginTxx(context.Context, *sql.TxOptions) (*sqlx.Tx, error)
-}
-
-type TxAccessor interface {
-	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
-	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-	Commit() error
-	Rollback() error
-}
-
-type Queryer interface {
-	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
-	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
 }
 
 type Database struct {
 	db DatabaseAccessor
-	tx TxAccessor
 }
 
 func New(db DatabaseAccessor) *Database {
 	return &Database{db: db}
-}
-
-func (d *Database) Q() Queryer {
-	if d.tx != nil {
-		return d.tx
-	} else {
-		return d.db
-	}
-}
-
-func (d *Database) Begin(context context.Context) error {
-	tx, err := d.db.BeginTxx(context, nil)
-	if err != nil {
-		return err
-	}
-	d.tx = tx
-	return nil
-}
-
-func (d *Database) Commit() error {
-	if d.tx != nil {
-		err := d.tx.Commit()
-		d.tx = nil
-		return err
-	}
-	return nil
-}
-
-func (d *Database) Rollback() error {
-	if d.tx != nil {
-		err := d.tx.Rollback()
-		d.tx = nil
-		return err
-	}
-	return nil
 }
 
 func (d *Database) Username(context context.Context, userID string) (string, error) {
@@ -102,7 +51,7 @@ func (d *Database) Username(context context.Context, userID string) (string, err
 		WHERE id = $1;
 	`
 
-	err := d.Q().QueryRowxContext(context, q, userID).Scan(&username)
+	err := d.db.QueryRowxContext(context, q, userID).Scan(&username)
 	if err != nil {
 		return "", err
 	}
@@ -119,7 +68,7 @@ func (d *Database) UserID(context context.Context, username string) (string, err
 		WHERE username = $1;
 	`
 
-	err := d.Q().QueryRowxContext(context, q, username).Scan(&userID)
+	err := d.db.QueryRowxContext(context, q, username).Scan(&userID)
 	if err != nil {
 		return "", err
 	}
@@ -145,7 +94,7 @@ func (d *Database) CurrentCPUHoursForUser(context context.Context, username stri
 		AND t.effective_range @> CURRENT_TIMESTAMP::timestamp
 		LIMIT 1;
 	`
-	err := d.Q().QueryRowxContext(context, q, username).StructScan(&cpuHours)
+	err := d.db.QueryRowxContext(context, q, username).StructScan(&cpuHours)
 	if err != nil {
 		return nil, err
 	}
@@ -159,7 +108,7 @@ func (d *Database) InsertCurrentCPUHoursForUser(context context.Context, cpuHour
 		VALUES
 			($1, $2, tsrange($3, $4, '[)'));
 	`
-	_, err := d.Q().ExecContext(
+	_, err := d.db.ExecContext(
 		context,
 		q,
 		cpuHours.Total,
@@ -191,7 +140,7 @@ func (d *Database) AllCPUHoursForUser(context context.Context, username string) 
 		WHERE u.username = $1;
 	`
 
-	rows, err = d.Q().QueryxContext(context, q, username)
+	rows, err = d.db.QueryxContext(context, q, username)
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +178,7 @@ func (d *Database) AdminAllCurrentCPUHours(context context.Context) ([]CPUHours,
 		WHERE t.effective_range @> CURRENT_TIMESTAMP::timestamp;
 	`
 
-	rows, err := d.Q().QueryxContext(context, q)
+	rows, err := d.db.QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}
@@ -266,7 +215,7 @@ func (d *Database) AdminAllCPUHours(context context.Context) ([]CPUHours, error)
 		JOIN users u ON t.user_id = u.id;
 	`
 
-	rows, err := d.Q().QueryxContext(context, q)
+	rows, err := d.db.QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +244,7 @@ func (d *Database) UpdateCPUHoursTotal(context context.Context, totalObj *CPUHou
 		AND effective_range @> CURRENT_TIMESTAMP::timestamp;
 	`
 
-	_, err := d.Q().ExecContext(
+	_, err := d.db.ExecContext(
 		context,
 		q,
 		totalObj.UserID,
@@ -308,10 +257,10 @@ func (d *Database) MillicoresReserved(context context.Context, analysisID string
 	const q = `
 		SELECT millicores_reserved
 		FROM jobs
-		WHERE id = $1;
+		WhERE id = $1;
 	`
 	var millicores int64
-	err := d.Q().QueryRowxContext(context, q, analysisID).Scan(&millicores)
+	err := d.db.QueryRowxContext(context, q, analysisID).Scan(&millicores)
 	return millicores, err
 }
 
@@ -329,7 +278,7 @@ func (d *Database) UsersWithCalculableAnalyses(context context.Context) ([]User,
 		AND j.end_date IS NOT NULL;
 	`
 
-	rows, err := d.Q().QueryxContext(context, q)
+	rows, err := d.db.QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}

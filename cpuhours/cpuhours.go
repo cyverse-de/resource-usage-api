@@ -2,7 +2,6 @@ package cpuhours
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -25,13 +24,6 @@ type CPUHours struct {
 	nc *nats.EncodedConn
 }
 
-type CalculationResult struct {
-	CPUHours  *apd.Decimal
-	Analysis  *db.Analysis
-	BasisTime time.Time
-	CalcTime  time.Time
-}
-
 func New(db *db.Database, nc *nats.EncodedConn) *CPUHours {
 	return &CPUHours{
 		db: db,
@@ -40,76 +32,52 @@ func New(db *db.Database, nc *nats.EncodedConn) *CPUHours {
 }
 
 // CPUHoursForAnalysis returns the CPU hours total for the analysis as a decimal value.
-func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID string) (CalculationResult, error) {
+func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID string) (*apd.Decimal, *db.Analysis, error) {
 	var (
-		basisTime time.Time
-		calcTime  time.Time
-		analysis  *db.Analysis
-		err       error
-		res       CalculationResult
+		endTime  time.Time
+		analysis *db.Analysis
+		err      error
 	)
 	log = log.WithFields(logrus.Fields{"context": "calculating CPU hours", "analysisID": analysisID})
 
 	log.Debug("getting millicores reserved")
 	millicoresReserved, err := c.db.MillicoresReserved(context, analysisID)
 	if err != nil {
-		return res, err
+		return nil, nil, err
 	}
 	log.Debug("done getting millicores reserved")
 
-	for i := 0; i < 5; i++ { // Try five times, then use time.Now().UTC() instead
-		log.Debug("getting analysis info and locking row")
+	for {
+		log.Debug("getting analysis info")
 		analysis, err = c.db.AnalysisWithoutUser(context, analysisID)
 		if err != nil {
-			return res, err
+			return nil, nil, err
 		}
 		log.Debug("done getting analysis info")
 
 		if !analysis.StartDate.Valid {
-			return res, fmt.Errorf("start date is null")
+			return nil, nil, fmt.Errorf("start date is null")
 		}
 
 		// It's possible for this to be reached before the database is updated with the actual
 		// end date. If that's the case, wait a bit and try again.
-		//
-		// We drop and restart the transaction here to avoid lock
-		// issues and allow the end date to get set by other processes
 		if !analysis.EndDate.Valid {
-			if err := c.db.Rollback(); err != nil {
-				log.WithError(err).Error("failed to rollback transaction")
-			}
 			time.Sleep(5 * time.Second)
-			c.db.Begin(context) // nolint: errcheck
 			continue
 
 		} else {
-			calcTime = analysis.EndDate.Time.UTC()
+			endTime = analysis.EndDate.Time.UTC()
 			break
 		}
 	}
 
-	res.Analysis = analysis
+	startTime := analysis.StartDate.Time.UTC()
 
-	if calcTime.IsZero() {
-		calcTime = time.Now().UTC()
-	}
+	log.Infof("start date: %s, end date: %s", startTime.String(), endTime.String())
 
-	// Start calculation at the most recent of StartTime or UsageLastUpdate
-	// calculate to EndDate or now, whichever is earlier
-	// so start -> now, last update -> now, start -> end time already past, or last update -> end time already past
-	// then update last update time to the now value that was used
-	basisTime = analysis.StartDate.Time.UTC()
-	if analysis.UsageLastUpdate.Valid && analysis.UsageLastUpdate.Time.UTC().After(basisTime) {
-		basisTime = analysis.UsageLastUpdate.Time.UTC()
-	}
-
-	res.BasisTime = basisTime
-	res.CalcTime = calcTime
-	log.Infof("basis date: %s, end date: %s", basisTime.String(), calcTime.String())
-
-	timeSpent, err := apd.New(0, 0).SetFloat64(calcTime.Sub(basisTime).Hours())
+	timeSpent, err := apd.New(0, 0).SetFloat64(endTime.Sub(startTime).Hours())
 	if err != nil {
-		return res, err
+		return nil, nil, err
 	}
 
 	mcReserved := apd.New(0, 0).SetInt64(millicoresReserved)
@@ -119,30 +87,21 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 	bc := apd.BaseContext.WithPrecision(15)
 	_, err = bc.Mul(cpuHours, mcReserved, timeSpent)
 	if err != nil {
-		return res, err
+		return nil, nil, err
 	}
 
 	_, err = bc.Quo(cpuHours, cpuHours, mc2cores)
 	if err != nil {
-		return res, err
+		return nil, nil, err
 	}
 
 	log.Infof("run time is %s hours; millicores reserved is %s; cpu hours is %s", timeSpent.String(), mcReserved.String(), cpuHours.String())
 
-	err = c.db.SetUsageLastUpdate(context, analysisID, calcTime)
-	if err != nil {
-		return res, err
-	}
-
-	res.CPUHours = cpuHours
-
-	return res, nil
+	return cpuHours, analysis, nil
 }
 
-func (c *CPUHours) addEvent(context context.Context, res CalculationResult) error {
+func (c *CPUHours) addEvent(context context.Context, analysis *db.Analysis, cpuHours *apd.Decimal) error {
 	var err error
-	analysis := res.Analysis
-	cpuHours := res.CPUHours
 
 	floatValue, err := cpuHours.Float64()
 	if err != nil {
@@ -150,11 +109,6 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 	}
 
 	username, err := c.db.Username(context, analysis.UserID)
-	if err != nil {
-		return err
-	}
-
-	metajson, err := json.Marshal(res)
 	if err != nil {
 		return err
 	}
@@ -173,7 +127,6 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 		User: &qms.QMSUser{
 			Username: username,
 		},
-		Metadata: string(metajson),
 	}
 
 	request := pbinit.NewAddUpdateRequest(update)
@@ -194,42 +147,26 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 
 func (c *CPUHours) CalculateForAnalysisByID(context context.Context, analysisID string) error {
 	var (
-		res CalculationResult
-		err error
+		cpuHours *apd.Decimal
+		analysis *db.Analysis
+		err      error
 	)
 
-	res, err = c.CPUHoursForAnalysis(context, analysisID)
+	cpuHours, analysis, err = c.CPUHoursForAnalysis(context, analysisID)
 	if err != nil {
 		return err
 	}
 
-	return c.addEvent(context, res)
+	return c.addEvent(context, analysis, cpuHours)
 }
 
 func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID string) error {
 	log.Debug("getting analysis id")
-
-	// We'll do this lookup outside the transaction to limit the lock time
 	analysisID, err := c.db.GetAnalysisIDByExternalID(context, externalID)
 	if err != nil {
 		return err
 	}
 	log.Debug("done getting analysis id")
 
-	err = c.db.Begin(context)
-	if err != nil {
-		return err
-	}
-	defer c.db.Rollback() // nolint:errcheck
-
-	err = c.CalculateForAnalysisByID(context, analysisID)
-	if err != nil {
-		rollbackErr := c.db.Rollback()
-		if rollbackErr != nil {
-			log.WithError(rollbackErr).Error("failed to rollback transaction")
-		}
-		return err
-	} else {
-		return c.db.Commit()
-	}
+	return c.CalculateForAnalysisByID(context, analysisID)
 }

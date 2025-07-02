@@ -43,7 +43,7 @@ func (d *Database) ListWorkers(context context.Context) ([]Worker, error) {
 		FROM cpu_usage_workers;
 	`
 
-	rows, err := d.Q().QueryxContext(context, q)
+	rows, err := d.db.QueryxContext(context, q)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func (d *Database) Worker(context context.Context, id string) (*Worker, error) {
 			last_modified
 		FROM cpu_usage_workers
 		WHERE id = $1;`
-	err := d.Q().QueryRowxContext(context, q, id).StructScan(&worker)
+	err := d.db.QueryRowxContext(context, q, id).StructScan(&worker)
 	return &worker, err
 }
 
@@ -102,7 +102,7 @@ func (d *Database) UpdateWorker(context context.Context, worker *Worker) error {
 			working_on =$12
 		WHERE id = $1;
 	`
-	_, err := d.Q().ExecContext(
+	_, err := d.db.ExecContext(
 		context,
 		q,
 		worker.ID,
@@ -125,7 +125,7 @@ func (d *Database) DeleteWorker(context context.Context, id string) error {
 	const q = `
 		DELETE FROM cpu_usage_workers WHERE id = $1;
 	`
-	_, err := d.Q().ExecContext(context, q, id)
+	_, err := d.db.ExecContext(context, q, id)
 	return err
 }
 
@@ -143,7 +143,7 @@ func (d *Database) RegisterWorker(context context.Context, workerName string, ex
 			($1, $2)
 		RETURNING id;
 	`
-	err = d.Q().QueryRowxContext(context, q, workerName, expiration).Scan(&newID)
+	err = d.db.QueryRowxContext(context, q, workerName, expiration).Scan(&newID)
 	return newID, err
 }
 
@@ -155,7 +155,7 @@ func (d *Database) UnregisterWorker(context context.Context, workerID string) er
 			getting_work = false
 		WHERE id = $1;
 	`
-	_, err := d.Q().ExecContext(context, q, workerID)
+	_, err := d.db.ExecContext(context, q, workerID)
 	return err
 }
 
@@ -170,7 +170,7 @@ func (d *Database) RefreshWorkerRegistration(context context.Context, workerID, 
 		SET activation_expires_on = $2;
 	`
 	newTime := time.Now().Add(expirationInterval)
-	_, err := d.Q().ExecContext(context, q, workerID, newTime, workerName)
+	_, err := d.db.ExecContext(context, q, workerID, newTime, workerName)
 	return &newTime, err
 }
 
@@ -189,7 +189,7 @@ func (d *Database) PurgeExpiredWorkers(context context.Context) (int64, error) {
 			activation_expires_on = NULL 
 		);
 	`
-	result, err := d.Q().ExecContext(context, q)
+	result, err := d.db.ExecContext(context, q)
 	if err != nil {
 		return 0, err
 	}
@@ -210,7 +210,7 @@ func (d *Database) PurgeExpiredWorkSeekers(context context.Context) (int64, erro
 		);
 	`
 
-	result, err := d.Q().ExecContext(context, q)
+	result, err := d.db.ExecContext(context, q)
 	if err != nil {
 		return 0, err
 	}
@@ -234,7 +234,7 @@ func (d *Database) PurgeExpiredWorkClaims(context context.Context) (int64, error
 			claim_expires_on = NULL
 		);
 	`
-	result, err := d.Q().ExecContext(context, q)
+	result, err := d.db.ExecContext(context, q)
 	if err != nil {
 		return 0, err
 	}
@@ -254,7 +254,7 @@ func (d *Database) ResetWorkClaimsForInactiveWorkers(context context.Context) (i
 		AND claimed_by = sub.id;
 	`
 
-	result, err := d.Q().ExecContext(context, q)
+	result, err := d.db.ExecContext(context, q)
 	if err != nil {
 		return 0, err
 	}
@@ -269,7 +269,7 @@ func (d *Database) GettingWork(context context.Context, workerID string, expirat
 			getting_work_expires_on = $2
 		WHERE id = $1;
 	`
-	_, err := d.Q().ExecContext(context, q, workerID, expiration)
+	_, err := d.db.ExecContext(context, q, workerID, expiration)
 	return err
 }
 
@@ -281,7 +281,7 @@ func (d *Database) DoneGettingWork(context context.Context, workerID string) err
 			getting_work_expires_on = NULL
 		WHERE id = $1;
 	`
-	_, err := d.Q().ExecContext(context, q, workerID)
+	_, err := d.db.ExecContext(context, q, workerID)
 	return err
 }
 
@@ -292,6 +292,6 @@ func (d *Database) SetWorking(context context.Context, workerID string, working 
 		SET working = $2
 		WHERE id = $1;
 	`
-	_, err := d.Q().ExecContext(context, q, workerID, working)
+	_, err := d.db.ExecContext(context, q, workerID, working)
 	return err
 }
