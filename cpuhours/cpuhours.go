@@ -183,7 +183,7 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 
 	log = log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
 
-	log.Debug("adding cpu usage event")
+	log.Debug("adding cpu usage event", request)
 	if err = gotelnats.Request(context, c.nc, subjects.QMSAddUserUpdate, request, response); err != nil {
 		return err
 	}
