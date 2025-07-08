@@ -185,6 +185,7 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 
 	log.Debug("adding cpu usage event", request)
 	if err = gotelnats.Request(context, c.nc, subjects.QMSAddUserUpdate, request, response); err != nil {
+		log.WithError(err).Error("Failed to add CPU usage event", response)
 		return err
 	}
 	log.Debug("after add cpu usage event")
