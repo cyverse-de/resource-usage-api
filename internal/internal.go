@@ -13,8 +13,6 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "internal"})
@@ -91,8 +89,6 @@ func (a *App) HelloHandler(c echo.Context) error {
 }
 
 func (a *App) Router() *echo.Echo {
-	a.router.Use(otelecho.Middleware("resource-usage-api"))
-
 	a.router.HTTPErrorHandler = logging.HTTPErrorHandler
 	a.router.GET("/", a.HelloHandler)
 

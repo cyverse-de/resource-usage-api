@@ -6,15 +6,13 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
-
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 // A regular expression used to remove suffixes from usernames.
 var usernameSuffixRegexp = regexp.MustCompile("@.*$")
 
 // An HTTP client to be used by all of the client libraries.
-var client = http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
+var client = http.Client{Transport: http.DefaultTransport}
 
 // HTTPError represents an error returned by an HTTP service
 type HTTPError struct {

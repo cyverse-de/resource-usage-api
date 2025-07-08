@@ -22,12 +22,7 @@ import (
 
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/gotelnats"
-	"github.com/cyverse-de/go-mod/otelutils"
 	"github.com/cyverse-de/go-mod/protobufjson"
-	"github.com/uptrace/opentelemetry-go-extra/otellogrus"
-	"github.com/uptrace/opentelemetry-go-extra/otelsql"
-	"github.com/uptrace/opentelemetry-go-extra/otelsqlx"
-	semconv "go.opentelemetry.io/otel/semconv/v1.7.0"
 
 	_ "expvar"
 
@@ -88,14 +83,7 @@ func main() {
 
 	flag.Parse()
 
-	logrus.AddHook(otellogrus.NewHook())
-
 	logging.SetupLogging(*logLevel)
-
-	var tracerCtx, cancel = context.WithCancel(context.Background())
-	defer cancel()
-	shutdown := otelutils.TracerProviderFromEnv(tracerCtx, serviceName, func(e error) { log.Fatal(e) })
-	defer shutdown()
 
 	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
 
@@ -158,8 +146,7 @@ func main() {
 		log.Fatalf("The %sNATS_CLUSTER environment variable or nats.cluster configuration value must be set", *envPrefix)
 	}
 
-	dbconn = otelsqlx.MustConnect("postgres", dbURI,
-		otelsql.WithAttributes(semconv.DBSystemPostgreSQL))
+	dbconn = sqlx.MustConnect("postgres", dbURI)
 	log.Info("done connecting to the database")
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
