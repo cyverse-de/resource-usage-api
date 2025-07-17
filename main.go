@@ -133,13 +133,6 @@ func main() {
 	}
 
 	qmsEnabled := config.Bool("qms.enabled")
-	qmsBaseURL := config.String("qms.base")
-
-	if qmsEnabled {
-		if qmsBaseURL == "" {
-			log.Fatal("qms.base must be set in the configuration file if qms.enabled is true")
-		}
-	}
 
 	natsCluster := config.String("nats.cluster")
 	if natsCluster == "" {
@@ -224,7 +217,6 @@ func main() {
 		NATSClient:           natsClient,
 		AMQPUsageRoutingKey:  *usageRoutingKey,
 		QMSEnabled:           qmsEnabled,
-		QMSBaseURL:           qmsBaseURL,
 		SubscriptionsBaseURI: *subscriptionsBase,
 	}
 

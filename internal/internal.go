@@ -26,7 +26,6 @@ type App struct {
 	amqpClient           *amqp.AMQP
 	natsClient           *nats.EncodedConn
 	amqpUsageRoutingKey  string
-	qmsClient            *clients.QMSAPI
 	qmsEnabled           bool
 	subscriptionsBaseURI string
 }
@@ -40,7 +39,6 @@ type AppConfiguration struct {
 	NATSClient               *nats.EncodedConn
 	AMQPUsageRoutingKey      string
 	QMSEnabled               bool
-	QMSBaseURL               string
 	SubscriptionsBaseURI     string
 }
 
@@ -63,10 +61,6 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to create the data-usage-api client")
 	}
-	qmsClient, err := clients.QMSAPIClient(config.QMSBaseURL)
-	if err != nil {
-		return nil, errors.Wrap(err, "unable to create the QMS client")
-	}
 
 	// Create the app instance.
 	app := &App{
@@ -77,7 +71,6 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 		amqpClient:           config.AMQPClient,
 		natsClient:           config.NATSClient,
 		amqpUsageRoutingKey:  config.AMQPUsageRoutingKey,
-		qmsClient:            qmsClient,
 		qmsEnabled:           config.QMSEnabled,
 		subscriptionsBaseURI: config.SubscriptionsBaseURI,
 	}
