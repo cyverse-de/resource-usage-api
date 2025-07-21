@@ -3,6 +3,8 @@ package summarizer
 import (
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/db"
+	"github.com/cyverse-de/resource-usage-api/logging"
+	"github.com/sirupsen/logrus"
 )
 
 type APIError struct {
@@ -33,3 +35,5 @@ type UserSummary struct {
 type Summarizer interface {
 	LoadSummary() *UserSummary
 }
+
+var log = logging.Log.WithFields(logrus.Fields{"package": "summarizer"})

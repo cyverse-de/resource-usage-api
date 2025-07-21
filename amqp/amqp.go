@@ -114,16 +114,6 @@ func (a *AMQP) recv(context context.Context, delivery amqp.Delivery) {
 	a.handler(context, update.Job.UUID, update.State)
 }
 
-func (a *AMQP) Send(context context.Context, routingKey string, data []byte) error {
-	var log = log.WithFields(logrus.Fields{"context": "sending usage to QMS"}).WithContext(context)
-	log.Debugf("routing key: %s, message: %s", routingKey, string(data))
-	return a.client.PublishContext(context, routingKey, data)
-}
-
-func (a *AMQP) Listen() {
-	a.client.Listen()
-}
-
 func (a *AMQP) Close() {
 	a.client.Close()
 }
