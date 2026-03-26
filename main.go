@@ -88,7 +88,7 @@ func main() {
 	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
 
 	log.Infof("config path is %s", *configPath)
-	log.Infof("listen port is %d", listenPort)
+	log.Infof("listen port is %d", *listenPort)
 	log.Infof("NATS TLS cert file is %s", *tlsCert)
 	log.Infof("NATS TLS key file is %s", *tlsKey)
 	log.Infof("NATS CA cert file is %s", *caCert)
@@ -192,7 +192,7 @@ func main() {
 		ExchangeType:  amqpExchangeType,
 		Reconnect:     *reconnect,
 		Queue:         *queue,
-		PrefetchCount: 0,
+		PrefetchCount: 10,
 	}
 
 	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
