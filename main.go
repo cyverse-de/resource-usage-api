@@ -40,17 +40,17 @@ func getHandler(dbClient *sqlx.DB, nc *nats.EncodedConn) amqp.HandlerFn {
 	return func(context context.Context, externalID string, state messaging.JobState) {
 		var err error
 
-		log = log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(context)
+		msgLog := log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(context)
 
 		// TODO: should this happen for non-failed/succeeded messages?
 		if state == messaging.FailedState || state == messaging.SucceededState {
-			log.Debug("calculating CPU hours for analysis")
+			msgLog.Debug("calculating CPU hours for analysis")
 			if err = cpuhours.CalculateForAnalysis(context, externalID); err != nil {
-				log.Error(err)
+				msgLog.Error(err)
 			}
-			log.Debug("done calculating CPU hours for analysis")
+			msgLog.Debug("done calculating CPU hours for analysis")
 		} else {
-			log.Debugf("received status is %s, ignoring", state)
+			msgLog.Debugf("received status is %s, ignoring", state)
 		}
 	}
 }
