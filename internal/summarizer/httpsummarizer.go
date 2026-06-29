@@ -49,7 +49,7 @@ func (h *HTTPSummarizer) LoadSummary() *UserSummary {
 		log.Error(err)
 		return &summary
 	}
-	defer httpResp.Body.Close()
+	defer httpResp.Body.Close() // nolint: errcheck
 
 	b, err := io.ReadAll(httpResp.Body)
 	if err != nil {
