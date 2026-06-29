@@ -48,22 +48,22 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 		err       error
 		res       CalculationResult
 	)
-	log = log.WithFields(logrus.Fields{"context": "calculating CPU hours", "analysisID": analysisID})
+	msgLog := log.WithFields(logrus.Fields{"context": "calculating CPU hours", "analysisID": analysisID})
 
-	log.Debug("getting millicores reserved")
+	msgLog.Debug("getting millicores reserved")
 	millicoresReserved, err := c.db.MillicoresReserved(context, analysisID)
 	if err != nil {
 		return res, err
 	}
-	log.Debug("done getting millicores reserved")
+	msgLog.Debug("done getting millicores reserved")
 
 	for i := 0; i < 5; i++ { // Try five times, then use time.Now().UTC() instead
-		log.Debug("getting analysis info and locking row")
+		msgLog.Debug("getting analysis info and locking row")
 		analysis, err = c.db.AnalysisWithoutUser(context, analysisID)
 		if err != nil {
 			return res, err
 		}
-		log.Debug("done getting analysis info")
+		msgLog.Debug("done getting analysis info")
 
 		if !analysis.StartDate.Valid {
 			return res, fmt.Errorf("start date is null")
@@ -76,7 +76,7 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 		// issues and allow the end date to get set by other processes
 		if !analysis.EndDate.Valid {
 			if err := c.db.Rollback(); err != nil {
-				log.WithError(err).Error("failed to rollback transaction")
+				msgLog.WithError(err).Error("failed to rollback transaction")
 			}
 			time.Sleep(5 * time.Second)
 			c.db.Begin(context) // nolint: errcheck
@@ -105,7 +105,7 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 
 	res.BasisTime = basisTime
 	res.CalcTime = calcTime
-	log.Infof("basis date: %s, end date: %s", basisTime.String(), calcTime.String())
+	msgLog.Infof("basis date: %s, end date: %s", basisTime.String(), calcTime.String())
 
 	timeSpent, err := apd.New(0, 0).SetFloat64(calcTime.Sub(basisTime).Hours())
 	if err != nil {
@@ -127,7 +127,7 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 		return res, err
 	}
 
-	log.Infof("run time is %s hours; millicores reserved is %s; cpu hours is %s", timeSpent.String(), mcReserved.String(), cpuHours.String())
+	msgLog.Infof("run time is %s hours; millicores reserved is %s; cpu hours is %s", timeSpent.String(), mcReserved.String(), cpuHours.String())
 
 	err = c.db.SetUsageLastUpdate(context, analysisID, calcTime)
 	if err != nil {
@@ -181,14 +181,14 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 	_, span := pbinit.InitQMSAddUpdateRequest(request, subjects.QMSAddUserUpdate)
 	defer span.End()
 
-	log = log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
+	msgLog := log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
 
-	log.Debug("adding cpu usage event", request)
+	msgLog.Debug("adding cpu usage event", request)
 	if err = gotelnats.Request(context, c.nc, subjects.QMSAddUserUpdate, request, response); err != nil {
-		log.WithError(err).Error("Failed to add CPU usage event", response)
+		msgLog.WithError(err).Error("Failed to add CPU usage event", response)
 		return err
 	}
-	log.Debug("after add cpu usage event")
+	msgLog.Debug("after add cpu usage event")
 
 	return nil
 }

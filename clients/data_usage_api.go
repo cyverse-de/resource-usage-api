@@ -64,7 +64,7 @@ func (c *DataUsageAPI) GetUsageSummary(ctx context.Context, username string) (*U
 	if err != nil {
 		return &usage, errors.Wrapf(err, "unable to send the request to %s", requestURL)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() // nolint: errcheck
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return &usage, NewHTTPError(resp.StatusCode, fmt.Sprintf("%s returned %d", requestURL, resp.StatusCode))
 	}
