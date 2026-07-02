@@ -5,12 +5,12 @@ go 1.24.2
 require (
 	github.com/cockroachdb/apd v1.1.0
 	github.com/cyverse-de/go-mod/cfg v0.0.2
-	github.com/cyverse-de/go-mod/gotelnats v0.0.15
-	github.com/cyverse-de/go-mod/pbinit v0.1.14
-	github.com/cyverse-de/go-mod/protobufjson v0.0.3
+	github.com/cyverse-de/go-mod/gotelnats v0.1.0
+	github.com/cyverse-de/go-mod/pbinit v0.2.0
 	github.com/cyverse-de/go-mod/subjects v0.1.4
 	github.com/cyverse-de/messaging/v9 v9.1.5
-	github.com/cyverse-de/p/go/qms v0.2.1
+	github.com/cyverse-de/p/go/qms v0.3.0
+	github.com/cyverse-de/p/go/ptypes v0.1.0
 	github.com/guregu/null v4.0.0+incompatible
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/knadh/koanf v1.5.0
@@ -22,19 +22,17 @@ require (
 	github.com/streadway/amqp v1.1.0
 	go.opentelemetry.io/otel v1.26.0
 	golang.org/x/net v0.22.0
-	google.golang.org/protobuf v1.36.6
 )
 
 require (
 	github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9 // indirect
 	github.com/cyverse-de/model/v6 v6.0.1 // indirect
-	github.com/cyverse-de/p v0.0.0-20240228001927-426a6bd80191 // indirect
-	github.com/cyverse-de/p/go/analysis v0.0.16 // indirect
-	github.com/cyverse-de/p/go/containers v0.0.2 // indirect
-	github.com/cyverse-de/p/go/header v0.0.4 // indirect
-	github.com/cyverse-de/p/go/monitoring v0.0.5 // indirect
-	github.com/cyverse-de/p/go/svcerror v0.0.8 // indirect
-	github.com/cyverse-de/p/go/user v0.0.11 // indirect
+	github.com/cyverse-de/p/go/analysis v0.1.0 // indirect
+	github.com/cyverse-de/p/go/containers v0.1.0 // indirect
+	github.com/cyverse-de/p/go/header v0.1.0 // indirect
+	github.com/cyverse-de/p/go/monitoring v0.1.0 // indirect
+	github.com/cyverse-de/p/go/svcerror v0.1.0 // indirect
+	github.com/cyverse-de/p/go/user v0.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect

@@ -15,7 +15,7 @@ import (
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"github.com/cyverse-de/p/go/ptypes"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "cpuhours"})
@@ -162,7 +162,7 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 	update := &qms.Update{
 		ValueType:     "usages",
 		Value:         floatValue,
-		EffectiveDate: timestamppb.Now(),
+		EffectiveDate: ptypes.Now(),
 		Operation: &qms.UpdateOperation{
 			Name: "ADD",
 		},

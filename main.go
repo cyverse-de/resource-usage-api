@@ -22,7 +22,6 @@ import (
 
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/gotelnats"
-	"github.com/cyverse-de/go-mod/protobufjson"
 
 	_ "expvar"
 
@@ -85,7 +84,6 @@ func main() {
 
 	logging.SetupLogging(*logLevel)
 
-	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
 
 	log.Infof("config path is %s", *configPath)
 	log.Infof("listen port is %d", *listenPort)
@@ -181,7 +179,7 @@ func main() {
 	log.Infof("configured servers: %s", strings.Join(nc.Servers(), " "))
 	log.Infof("connected to NATS host: %s", nc.ConnectedServerName())
 
-	natsClient, err := nats.NewEncodedConn(nc, "protojson")
+	natsClient, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
 	if err != nil {
 		log.Fatal(err)
 	}
