@@ -84,7 +84,6 @@ func main() {
 
 	logging.SetupLogging(*logLevel)
 
-
 	log.Infof("config path is %s", *configPath)
 	log.Infof("listen port is %d", *listenPort)
 	log.Infof("NATS TLS cert file is %s", *tlsCert)

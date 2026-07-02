@@ -10,12 +10,12 @@ import (
 	"github.com/cyverse-de/go-mod/gotelnats"
 	"github.com/cyverse-de/go-mod/pbinit"
 	"github.com/cyverse-de/go-mod/subjects"
+	"github.com/cyverse-de/p/go/ptypes"
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
-	"github.com/cyverse-de/p/go/ptypes"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "cpuhours"})
