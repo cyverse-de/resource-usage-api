@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"context"
+
 	"github.com/cyverse-de/messaging/v9"
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/cpuhours"
@@ -18,11 +20,9 @@ import (
 	"github.com/knadh/koanf"
 	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 
 	"github.com/cyverse-de/go-mod/cfg"
 	"github.com/cyverse-de/go-mod/gotelnats"
-	"github.com/cyverse-de/go-mod/protobufjson"
 
 	_ "expvar"
 
@@ -37,15 +37,15 @@ func getHandler(dbClient *sqlx.DB, nc *nats.EncodedConn) amqp.HandlerFn {
 	dedb := db.New(dbClient)
 	cpuhours := cpuhours.New(dedb, nc)
 
-	return func(context context.Context, externalID string, state messaging.JobState) {
+	return func(ctx context.Context, externalID string, state messaging.JobState) {
 		var err error
 
-		msgLog := log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(context)
+		msgLog := log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(ctx)
 
 		// TODO: should this happen for non-failed/succeeded messages?
 		if state == messaging.FailedState || state == messaging.SucceededState {
 			msgLog.Debug("calculating CPU hours for analysis")
-			if err = cpuhours.CalculateForAnalysis(context, externalID); err != nil {
+			if err = cpuhours.CalculateForAnalysis(ctx, externalID); err != nil {
 				msgLog.Error(err)
 			}
 			msgLog.Debug("done calculating CPU hours for analysis")
@@ -84,8 +84,6 @@ func main() {
 	flag.Parse()
 
 	logging.SetupLogging(*logLevel)
-
-	nats.RegisterEncoder("protojson", protobufjson.NewCodec(protobufjson.WithEmitUnpopulated()))
 
 	log.Infof("config path is %s", *configPath)
 	log.Infof("listen port is %d", *listenPort)
@@ -181,7 +179,7 @@ func main() {
 	log.Infof("configured servers: %s", strings.Join(nc.Servers(), " "))
 	log.Infof("connected to NATS host: %s", nc.ConnectedServerName())
 
-	natsClient, err := nats.NewEncodedConn(nc, "protojson")
+	natsClient, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
 	if err != nil {
 		log.Fatal(err)
 	}
