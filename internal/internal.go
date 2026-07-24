@@ -10,7 +10,6 @@ import (
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
-	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -24,7 +23,6 @@ type App struct {
 	userSuffix           string
 	dataUsageClient      *clients.DataUsageAPI
 	amqpClient           *amqp.AMQP
-	natsClient           *nats.EncodedConn
 	amqpUsageRoutingKey  string
 	qmsEnabled           bool
 	subscriptionsBaseURI string
@@ -36,7 +34,6 @@ type AppConfiguration struct {
 	DataUsageBaseURL         string
 	CurrentDataUsageEndpoint string
 	AMQPClient               *amqp.AMQP
-	NATSClient               *nats.EncodedConn
 	AMQPUsageRoutingKey      string
 	QMSEnabled               bool
 	SubscriptionsBaseURI     string
@@ -69,7 +66,6 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 		userSuffix:           config.UserSuffix,
 		dataUsageClient:      dataUsageClient,
 		amqpClient:           config.AMQPClient,
-		natsClient:           config.NATSClient,
 		amqpUsageRoutingKey:  config.AMQPUsageRoutingKey,
 		qmsEnabled:           config.QMSEnabled,
 		subscriptionsBaseURI: config.SubscriptionsBaseURI,

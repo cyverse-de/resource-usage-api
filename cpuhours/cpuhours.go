@@ -7,22 +7,19 @@ import (
 	"time"
 
 	"github.com/cockroachdb/apd"
-	"github.com/cyverse-de/go-mod/gotelnats"
-	"github.com/cyverse-de/go-mod/pbinit"
-	"github.com/cyverse-de/go-mod/subjects"
 	"github.com/cyverse-de/p/go/ptypes"
 	"github.com/cyverse-de/p/go/qms"
+	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
-	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "cpuhours"})
 
 type CPUHours struct {
-	db *db.Database
-	nc *nats.EncodedConn
+	db            *db.Database
+	subscriptions *clients.Subscriptions
 }
 
 type CalculationResult struct {
@@ -32,10 +29,10 @@ type CalculationResult struct {
 	CalcTime  time.Time
 }
 
-func New(db *db.Database, nc *nats.EncodedConn) *CPUHours {
+func New(db *db.Database, subscriptions *clients.Subscriptions) *CPUHours {
 	return &CPUHours{
-		db: db,
-		nc: nc,
+		db:            db,
+		subscriptions: subscriptions,
 	}
 }
 
@@ -176,16 +173,11 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 		Metadata: string(metajson),
 	}
 
-	request := pbinit.NewAddUpdateRequest(update)
-	response := pbinit.NewQMSAddUpdateResponse()
-	_, span := pbinit.InitQMSAddUpdateRequest(request, subjects.QMSAddUserUpdate)
-	defer span.End()
-
 	msgLog := log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
 
-	msgLog.Debug("adding cpu usage event", request)
-	if err = gotelnats.Request(context, c.nc, subjects.QMSAddUserUpdate, request, response); err != nil {
-		msgLog.WithError(err).Error("Failed to add CPU usage event", response)
+	msgLog.Debugf("adding cpu usage event of %f for %s", floatValue, username)
+	if err = c.subscriptions.AddUserUpdate(context, username, update); err != nil {
+		msgLog.WithError(err).Error("Failed to add CPU usage event")
 		return err
 	}
 	msgLog.Debug("after add cpu usage event")

@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -19,17 +18,11 @@ type DataUsageAPI struct {
 
 // DataUsageAPIClient returns a new instance of DataUsageAPI for the given raw base URL.
 func DataUsageAPIClient(baseURL string) (*DataUsageAPI, error) {
-
-	//  Parse the raw base URL.
-	url, err := url.Parse(baseURL)
+	parsed, err := parseBaseURL(baseURL)
 	if err != nil {
 		return nil, err
 	}
-
-	// Ensure that the base URL path doesn't end with a slash.
-	url.Path = strings.TrimSuffix(url.Path, "/")
-
-	return &DataUsageAPI{baseURL: url}, nil
+	return &DataUsageAPI{baseURL: parsed}, nil
 }
 
 // UserDataUsage contains a user's current data usage, as returned by data-usage-api service.
