@@ -5,24 +5,22 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"context"
 
 	"github.com/cyverse-de/messaging/v9"
 	"github.com/cyverse-de/resource-usage-api/amqp"
+	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/cpuhours"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/internal"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/knadh/koanf"
-	"github.com/nats-io/nats.go"
 	"github.com/sirupsen/logrus"
 
 	"github.com/cyverse-de/go-mod/cfg"
-	"github.com/cyverse-de/go-mod/gotelnats"
 
 	_ "expvar"
 
@@ -33,9 +31,9 @@ const serviceName = "resource-usage-api"
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
-func getHandler(dbClient *sqlx.DB, nc *nats.EncodedConn) amqp.HandlerFn {
+func getHandler(dbClient *sqlx.DB, subscriptions *clients.Subscriptions) amqp.HandlerFn {
 	dedb := db.New(dbClient)
-	cpuhours := cpuhours.New(dedb, nc)
+	cpuhours := cpuhours.New(dedb, subscriptions)
 
 	return func(ctx context.Context, externalID string, state messaging.JobState) {
 		var err error
@@ -63,15 +61,7 @@ func main() {
 
 		configPath        = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
 		dotEnvPath        = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
-		noCreds           = flag.Bool("no-creds", false, "Turn off NATS creds support")
-		noTLS             = flag.Bool("no-tls", false, "Turn off TLS support in the NATS connection")
-		tlsCert           = flag.String("tlscert", gotelnats.DefaultTLSCertPath, "Path to the NATS TLS cert file")
-		tlsKey            = flag.String("tlskey", gotelnats.DefaultTLSKeyPath, "Path to the NATS TLS key file")
-		caCert            = flag.String("tlsca", gotelnats.DefaultTLSCAPath, "Path to the NATS TLS CA file")
-		credsPath         = flag.String("creds", gotelnats.DefaultCredsPath, "Path to the NATS creds file")
 		envPrefix         = flag.String("env-prefix", cfg.DefaultEnvPrefix, "The prefix for environment variables")
-		maxReconnects     = flag.Int("max-reconnects", gotelnats.DefaultMaxReconnects, "Maximum number of reconnection attempts to NATS")
-		reconnectWait     = flag.Int("reconnect-wait", gotelnats.DefaultReconnectWait, "Seconds to wait between reconnection attempts to NATS")
 		listenPort        = flag.Int("port", 60000, "The port the service listens on for requests")
 		queue             = flag.String("queue", serviceName, "The AMQP queue name for this service")
 		reconnect         = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
@@ -87,11 +77,8 @@ func main() {
 
 	log.Infof("config path is %s", *configPath)
 	log.Infof("listen port is %d", *listenPort)
-	log.Infof("NATS TLS cert file is %s", *tlsCert)
-	log.Infof("NATS TLS key file is %s", *tlsKey)
-	log.Infof("NATS CA cert file is %s", *caCert)
-	log.Infof("NATS creds file is %s", *credsPath)
 	log.Infof("dotenv file is %s", *dotEnvPath)
+	log.Infof("subscriptions base URI is %s", *subscriptionsBase)
 
 	config, err = cfg.Init(&cfg.Settings{
 		EnvPrefix:   *envPrefix,
@@ -132,54 +119,12 @@ func main() {
 
 	qmsEnabled := config.Bool("qms.enabled")
 
-	natsCluster := config.String("nats.cluster")
-	if natsCluster == "" {
-		log.Fatalf("The %sNATS_CLUSTER environment variable or nats.cluster configuration value must be set", *envPrefix)
-	}
-
 	dbconn = sqlx.MustConnect("postgres", dbURI)
 	log.Info("done connecting to the database")
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
 
-	options := []nats.Option{
-		nats.RetryOnFailedConnect(true),
-		nats.MaxReconnects(*maxReconnects),
-		nats.ReconnectWait(time.Duration(*reconnectWait) * time.Second),
-		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-			if err != nil {
-				log.Errorf("disconnected from nats: %s", err.Error())
-			}
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			log.Infof("reconnected to %s", nc.ConnectedUrl())
-		}),
-		nats.ClosedHandler(func(nc *nats.Conn) {
-			log.Errorf("connection closed: %s", nc.LastError().Error())
-		}),
-	}
-
-	if !*noTLS {
-		options = append(options, nats.RootCAs(*caCert))
-		options = append(options, nats.ClientCert(*tlsCert, *tlsKey))
-	}
-
-	if !*noCreds {
-		options = append(options, nats.UserCredentials(*credsPath))
-	}
-
-	nc, err := nats.Connect(
-		natsCluster,
-		options...,
-	)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	log.Infof("configured servers: %s", strings.Join(nc.Servers(), " "))
-	log.Infof("connected to NATS host: %s", nc.ConnectedServerName())
-
-	natsClient, err := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
+	subscriptionsClient, err := clients.SubscriptionsClient(*subscriptionsBase)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -199,7 +144,7 @@ func main() {
 	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
 	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
 
-	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, natsClient))
+	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, subscriptionsClient))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -212,7 +157,6 @@ func main() {
 		UserSuffix:           userSuffix,
 		DataUsageBaseURL:     *dataUsageBase,
 		AMQPClient:           amqpClient,
-		NATSClient:           natsClient,
 		AMQPUsageRoutingKey:  *usageRoutingKey,
 		QMSEnabled:           qmsEnabled,
 		SubscriptionsBaseURI: *subscriptionsBase,

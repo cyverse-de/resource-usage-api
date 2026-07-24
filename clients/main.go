@@ -6,13 +6,15 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"time"
 )
 
 // A regular expression used to remove suffixes from usernames.
 var usernameSuffixRegexp = regexp.MustCompile("@.*$")
 
-// An HTTP client to be used by all of the client libraries.
-var client = http.Client{Transport: http.DefaultTransport}
+// An HTTP client to be used by all of the client libraries. The timeout matches the one the NATS request/reply
+// calls it replaced used, so a wedged downstream service can't pin a goroutine indefinitely.
+var client = http.Client{Transport: http.DefaultTransport, Timeout: 30 * time.Second}
 
 // HTTPError represents an error returned by an HTTP service
 type HTTPError struct {
