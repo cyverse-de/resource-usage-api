@@ -5,11 +5,36 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/p/go/svcerror"
 )
+
+func TestSubscriptionsClientValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		baseURL string
+		wantErr bool
+	}{
+		{name: "plain http", baseURL: "http://subscriptions", wantErr: false},
+		{name: "https with a path", baseURL: "https://example.org/subscriptions/", wantErr: false},
+		{name: "missing scheme", baseURL: "subscriptions", wantErr: true},
+		{name: "unsupported scheme", baseURL: "nats://subscriptions", wantErr: true},
+		{name: "missing host", baseURL: "http://", wantErr: true},
+		{name: "empty", baseURL: "", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := SubscriptionsClient(tt.baseURL)
+			if tt.wantErr != (err != nil) {
+				t.Fatalf("SubscriptionsClient(%q) error = %v, wantErr %v", tt.baseURL, err, tt.wantErr)
+			}
+		})
+	}
+}
 
 func testUpdate() *qms.Update {
 	return &qms.Update{
@@ -76,6 +101,7 @@ func TestAddUserUpdateErrors(t *testing.T) {
 		body       string
 		wantErr    bool
 		wantStatus int
+		wantMsg    string
 	}{
 		{
 			name:    "success",
@@ -96,13 +122,24 @@ func TestAddUserUpdateErrors(t *testing.T) {
 			body:       `{"error":{"error_code":"NOT_FOUND","status_code":404,"message":"user name not found"}}`,
 			wantErr:    true,
 			wantStatus: http.StatusNotFound,
+			wantMsg:    "user name not found",
 		},
 		{
+			// The envelope message must survive into the error so log-based triage sees the reason.
 			name:       "non-2xx status",
 			status:     http.StatusBadRequest,
 			body:       `{"error":{"error_code":"BAD_REQUEST","status_code":400,"message":"nope"}}`,
 			wantErr:    true,
 			wantStatus: http.StatusBadRequest,
+			wantMsg:    "nope",
+		},
+		{
+			name:       "non-2xx status with an unparseable body",
+			status:     http.StatusBadGateway,
+			body:       `bad gateway`,
+			wantErr:    true,
+			wantStatus: http.StatusBadGateway,
+			wantMsg:    "returned 502",
 		},
 		{
 			name:    "unparseable body",
@@ -137,6 +174,9 @@ func TestAddUserUpdateErrors(t *testing.T) {
 				if got := GetStatusCode(err); got != tt.wantStatus {
 					t.Errorf("status code = %d, want %d", got, tt.wantStatus)
 				}
+			}
+			if tt.wantMsg != "" && !strings.Contains(err.Error(), tt.wantMsg) {
+				t.Errorf("error %q does not contain %q", err, tt.wantMsg)
 			}
 		})
 	}

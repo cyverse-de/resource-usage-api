@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/p/go/svcerror"
@@ -21,17 +20,11 @@ type Subscriptions struct {
 
 // SubscriptionsClient returns a new instance of Subscriptions for the given raw base URL.
 func SubscriptionsClient(baseURL string) (*Subscriptions, error) {
-
-	// Parse the raw base URL.
-	url, err := url.Parse(baseURL)
+	parsed, err := parseBaseURL(baseURL)
 	if err != nil {
 		return nil, err
 	}
-
-	// Ensure that the base URL path doesn't end with a slash.
-	url.Path = strings.TrimSuffix(url.Path, "/")
-
-	return &Subscriptions{baseURL: url}, nil
+	return &Subscriptions{baseURL: parsed}, nil
 }
 
 // subscriptionsURL returns a URL that can be used to connect to the subscriptions service. The URL path is
@@ -40,8 +33,8 @@ func (c *Subscriptions) subscriptionsURL(components ...string) *url.URL {
 	return BuildURL(c.baseURL, components...)
 }
 
-// serviceError converts a populated response error envelope into an error. subscriptions reports request failures
-// in the response body as well as the status code, so a 2xx response can still describe a failure.
+// serviceError converts a populated response error envelope into an error. subscriptions normally maps the
+// envelope to a non-2xx status; this defends against a failure envelope arriving with a 2xx status anyway.
 func serviceError(serr *svcerror.ServiceError) error {
 	if serr == nil || serr.ErrorCode == svcerror.ErrorCode_UNSET {
 		return nil
@@ -75,7 +68,14 @@ func (c *Subscriptions) AddUserUpdate(ctx context.Context, username string, upda
 	defer resp.Body.Close() // nolint: errcheck
 
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
-		return NewHTTPError(resp.StatusCode, fmt.Sprintf("%s returned %d", requestURL, resp.StatusCode))
+		// Surface the failure reason from the error envelope when the body carries one, so log-based
+		// triage sees why QMS rejected the update instead of just the status code.
+		message := fmt.Sprintf("%s returned %d", requestURL, resp.StatusCode)
+		var response qms.AddUpdateResponse
+		if err := json.NewDecoder(resp.Body).Decode(&response); err == nil && response.Error.GetMessage() != "" {
+			message = fmt.Sprintf("%s: %s", message, response.Error.GetMessage())
+		}
+		return NewHTTPError(resp.StatusCode, message)
 	}
 
 	var response qms.AddUpdateResponse
