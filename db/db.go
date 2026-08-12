@@ -5,12 +5,24 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 )
 
-var log = logging.Log // nolint
+var log = logging.Log.WithFields(logrus.Fields{"package": "db"})
+
+// psql builds queries for the schema-qualified and dynamically-shaped statements in this package.
+// Statements with a fixed shape are written as SQL literals instead.
+var psql = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+// logStats records connection pool usage when a transaction is opened.
+func logStats(name string, db DatabaseAccessor) {
+	stats := db.Stats()
+	log.Debugf("%s stats: %d/%d open; %d/%d used/idle", name, stats.OpenConnections, stats.MaxOpenConnections, stats.InUse, stats.Idle)
+}
 
 type CPUHours struct {
 	ID             string      `db:"id" json:"id"`
