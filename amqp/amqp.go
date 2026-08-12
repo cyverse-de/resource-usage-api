@@ -3,17 +3,22 @@ package amqp
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/cyverse-de/messaging/v9"
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/config"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "amqp"})
+
+// retryDelay is how long a redelivered message is held before it goes back on the queue again.
+const retryDelay = 30 * time.Second
 
 // Configuration describes the broker connection and the queues this service consumes from.
 type Configuration struct {
@@ -46,8 +51,9 @@ type analysisUpdateMsg struct {
 	Sender  string             `json:"Sender"`
 }
 
-// HandlerFn processes an analysis status update.
-type HandlerFn func(context context.Context, externalID string, state messaging.JobState)
+// HandlerFn processes an analysis status update. An error means the update was not recorded, and the
+// message is redelivered rather than dropped.
+type HandlerFn func(context context.Context, externalID string, state messaging.JobState) error
 
 // Dependencies are the collaborators the data usage handlers need.
 type Dependencies struct {
@@ -161,10 +167,16 @@ func (a *AMQP) recv(context context.Context, delivery amqp.Delivery) {
 		return
 	}
 
-	a.handler(context, update.Job.UUID, update.State)
-
 	// Acknowledged only after the handler has run, so that a crash mid-calculation leaves the message
-	// to be redelivered rather than silently dropping the analysis's usage.
+	// to be redelivered rather than silently dropping the analysis's usage. A handler that reports a
+	// failure gets the same treatment: the hours it could not record are only recoverable while the
+	// message is still outstanding.
+	if err = a.handler(context, update.Job.UUID, update.State); err != nil {
+		log.Error(errors.Wrapf(err, "Error handling the update for analysis %s", update.Job.UUID))
+		retry(context, delivery)
+		return
+	}
+
 	if err = delivery.Ack(false); err != nil {
 		log.Error(err)
 	}
@@ -172,7 +184,23 @@ func (a *AMQP) recv(context context.Context, delivery amqp.Delivery) {
 
 // reject discards a message that this service can never process.
 func reject(delivery amqp.Delivery) {
-	if err := delivery.Reject(!delivery.Redelivered); err != nil {
+	if err := delivery.Reject(false); err != nil {
+		log.Error(err)
+	}
+}
+
+// retry returns a message to the broker after a failure that another attempt may get past. A message
+// that has already come back once is held first, so that a dependency which stays down is retried at
+// a distance rather than spun against.
+func retry(ctx context.Context, delivery amqp.Delivery) {
+	if delivery.Redelivered {
+		select {
+		case <-ctx.Done():
+		case <-time.After(retryDelay):
+		}
+	}
+
+	if err := delivery.Reject(true); err != nil {
 		log.Error(err)
 	}
 }

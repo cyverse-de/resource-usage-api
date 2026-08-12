@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"errors"
 	"flag"
 	"fmt"
@@ -34,26 +35,33 @@ const serviceName = "resource-usage-api"
 var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
 func getHandler(dbClient *sqlx.DB, subscriptions *clients.Subscriptions) amqp.HandlerFn {
-	return func(ctx context.Context, externalID string, state messaging.JobState) {
-		var err error
-
+	return func(ctx context.Context, externalID string, state messaging.JobState) error {
 		msgLog := log.WithFields(logrus.Fields{"externalID": externalID}).WithContext(ctx)
 
 		// TODO: should this happen for non-failed/succeeded messages?
-		if state == messaging.FailedState || state == messaging.SucceededState {
-			msgLog.Debug("calculating CPU hours for analysis")
-
-			// Deliveries are handled concurrently and db.Database carries the in-flight transaction on
-			// itself, so each message gets its own rather than sharing one across goroutines.
-			calculator := cpuhours.New(db.New(dbClient), subscriptions)
-
-			if err = calculator.CalculateForAnalysis(ctx, externalID); err != nil {
-				msgLog.Error(err)
-			}
-			msgLog.Debug("done calculating CPU hours for analysis")
-		} else {
+		if state != messaging.FailedState && state != messaging.SucceededState {
 			msgLog.Debugf("received status is %s, ignoring", state)
+			return nil
 		}
+
+		msgLog.Debug("calculating CPU hours for analysis")
+
+		// Deliveries are handled concurrently and db.Database carries the in-flight transaction on
+		// itself, so each message gets its own rather than sharing one across goroutines.
+		calculator := cpuhours.New(db.New(dbClient), subscriptions)
+
+		if err := calculator.CalculateForAnalysis(ctx, externalID); err != nil {
+			// Nothing about the analysis is going to change because the update was redelivered, so
+			// these are acknowledged rather than retried forever.
+			if errors.Is(err, sql.ErrNoRows) || errors.Is(err, cpuhours.ErrNoStartDate) {
+				msgLog.WithError(err).Error("the analysis has no CPU hours to record, dropping the message")
+				return nil
+			}
+			return err
+		}
+		msgLog.Debug("done calculating CPU hours for analysis")
+
+		return nil
 	}
 }
 
@@ -64,12 +72,15 @@ func main() {
 		dbconn   *sqlx.DB
 		icatconn *sqlx.DB
 
-		configPath        = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
-		dotEnvPath        = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
-		envPrefix         = flag.String("env-prefix", cfg.DefaultEnvPrefix, "The prefix for environment variables")
-		listenPort        = flag.Int("port", 60000, "The port the service listens on for requests")
-		queue             = flag.String("queue", serviceName, "The AMQP queue name for this service")
-		reconnect         = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
+		configPath = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
+		dotEnvPath = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
+		envPrefix  = flag.String("env-prefix", cfg.DefaultEnvPrefix, "The prefix for environment variables")
+		listenPort = flag.Int("port", 60000, "The port the service listens on for requests")
+		queue      = flag.String("queue", serviceName, "The AMQP queue name for this service")
+		// The data usage consumers are the ones the merged data-usage-api brought over, and that service
+		// always reconnected. Without it the messaging client exits the process when the broker
+		// restarts, taking the HTTP API down with it.
+		reconnect         = flag.Bool("reconnect", true, "Whether the AMQP client should reconnect on failure")
 		logLevel          = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
 		subscriptionsBase = flag.String("subscriptions-base-uri", "http://subscriptions", "The base URL for contacting the subscriptions service")
 		shutdownTimeout   = flag.Duration("shutdown-timeout", time.Minute, "How long to let in-flight work finish after a shutdown signal")

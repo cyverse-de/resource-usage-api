@@ -43,6 +43,17 @@ The service consumes three queues on the DE exchange.
 The data usage queue names are inherited from the service this one absorbed, and are
 prefixed when `amqp.queueprefix` is set.
 
+Batch messages carry their `{"start": ..., "end": ...}` username bounds in the body.
+The bounds also appear in the routing key, where they are only informational: usernames
+contain dots, which are the routing key's own separator, so a key cannot say which
+username a dot belongs to. Messages published before the bounds moved into the body are
+still read from the key.
+
+A message that this service cannot read is dropped. Anything that fails for a reason
+another attempt may get past — the ICAT or subscriptions service being unreachable, a
+query outrunning its deadline — is returned to the queue instead, and is held briefly
+first if it has already come back once.
+
 # Configuration
 
 Settings are read from a YAML file, then a dotenv file, then the environment, in that

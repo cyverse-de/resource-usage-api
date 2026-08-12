@@ -2,6 +2,7 @@ package amqp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -26,8 +27,8 @@ const (
 )
 
 // recvDataUsage dispatches a data usage message by routing key. The message is acknowledged only once
-// it has been handled; anything that fails, or that matches no branch, is rejected so that the
-// consumer does not sit on an outstanding delivery and stall behind its prefetch limit.
+// it has been handled; anything that fails is returned to the broker so that the consumer does not sit
+// on an outstanding delivery and stall behind its prefetch limit.
 func (a *AMQP) recvDataUsage(ctx context.Context, delivery amqp.Delivery) {
 	var err error
 
@@ -38,18 +39,28 @@ func (a *AMQP) recvDataUsage(ctx context.Context, delivery amqp.Delivery) {
 	case key == "index.all" || key == "index.usage.data":
 		err = a.sendBatchMessages(ctx)
 	case strings.HasPrefix(key, BatchUserPrefix):
-		err = a.updateUserBatch(ctx, key)
+		err = a.updateUserBatch(ctx, delivery)
 	case strings.HasPrefix(key, SingleUserPrefix):
 		err = a.updateUser(ctx, key)
 	default:
-		log.Errorf("no handler for routing key %s, rejecting message", key)
+		log.Errorf("no handler for routing key %s, dropping message", key)
 		reject(delivery)
 		return
 	}
 
 	if err != nil {
 		log.Error(errors.Wrap(err, "Error handling message"))
-		reject(delivery)
+
+		// A message this service cannot read is dropped, since redelivering it changes nothing.
+		// Everything else failed on something transient — ICAT or subscriptions unreachable, a query
+		// outrunning its deadline — and goes back on the queue: dropping it would leave that user's
+		// usage stale until the next sweep, with nothing to say it had been skipped.
+		var unreadable *unprocessableError
+		if errors.As(err, &unreadable) {
+			reject(delivery)
+			return
+		}
+		retry(ctx, delivery)
 		return
 	}
 
@@ -64,22 +75,54 @@ func (a *AMQP) databases() *db.BothDatabases {
 	return db.NewBoth(a.deps.DEDB, a.deps.ICAT, a.deps.Config, a.deps.Subscriptions)
 }
 
-// parseSingleUsername reads the username a single-user refresh names.
+// batchBounds is the body of a batch refresh message. The bounds travel in the body because a routing
+// key cannot carry them unambiguously: usernames contain dots, which are also the separator, so the
+// key for alice.jones..bob.smith reads back as alice..jones.bob.smith.
+type batchBounds struct {
+	Start string `json:"start"`
+	End   string `json:"end"`
+}
+
+// parseSingleUsername reads the username a single-user refresh names. The prefix is trimmed rather
+// than indexed past because the consumer's binding matches the bare prefix too, and slicing a key
+// that short would take the process down from an unrecovered goroutine.
 func parseSingleUsername(routingKey string) (string, error) {
-	username := routingKey[len(SingleUserPrefix)+1:]
-	if username == "" {
-		return "", errors.Errorf("no username in routing key %s", routingKey)
+	username := strings.TrimPrefix(routingKey, SingleUserPrefix+".")
+	if username == "" || username == routingKey {
+		return "", unprocessable(errors.Errorf("no username in routing key %s", routingKey))
 	}
 	return username, nil
 }
 
-// parseBatchBounds reads the "<start>.<end>" username pair a batch refresh names. A key carrying
-// anything else cannot be acted on, and indexing it blindly would take the process down from an
-// unrecovered goroutine.
+// parseBatchMessage reads the username pair a batch refresh names. Messages enqueued before the
+// bounds moved into the body carry an empty one, and are read from the routing key as before.
+func parseBatchMessage(delivery amqp.Delivery) (start, end string, err error) {
+	if len(delivery.Body) == 0 {
+		return parseBatchBounds(delivery.RoutingKey)
+	}
+
+	var bounds batchBounds
+	if err := json.Unmarshal(delivery.Body, &bounds); err != nil {
+		return "", "", unprocessable(errors.Wrapf(err, "unable to parse the bounds in the body of %s", delivery.RoutingKey))
+	}
+	if bounds.Start == "" || bounds.End == "" {
+		return "", "", unprocessable(errors.Errorf("the body of %s does not name a start and end username", delivery.RoutingKey))
+	}
+	return bounds.Start, bounds.End, nil
+}
+
+// parseBatchBounds reads the "<start>.<end>" username pair from a batch refresh's routing key. It
+// splits at the first dot, so a start username containing one lands partly in the end bound; the
+// bounds in the message body are authoritative for anything this service publishes.
 func parseBatchBounds(routingKey string) (start, end string, err error) {
-	bounds := strings.SplitN(routingKey[len(BatchUserPrefix)+1:], ".", 2)
+	remainder := strings.TrimPrefix(routingKey, BatchUserPrefix+".")
+	if remainder == routingKey {
+		return "", "", unprocessable(errors.Errorf("routing key %s does not name a start and end username", routingKey))
+	}
+
+	bounds := strings.SplitN(remainder, ".", 2)
 	if len(bounds) != 2 || bounds[0] == "" || bounds[1] == "" {
-		return "", "", errors.Errorf("routing key %s does not name a start and end username", routingKey)
+		return "", "", unprocessable(errors.Errorf("routing key %s does not name a start and end username", routingKey))
 	}
 	return bounds[0], bounds[1], nil
 }
@@ -98,15 +141,22 @@ func (a *AMQP) updateUser(ctx context.Context, routingKey string) error {
 	defer cancel()
 
 	if _, err := a.databases().UpdateUserDataUsage(ctx, user); err != nil {
-		return errors.Wrap(err, "Failed updating usage information")
+		err = errors.Wrap(err, "Failed updating usage information")
+
+		// A user the DE does not know is not going to appear because the message came back.
+		var unknownUser *db.UserNotFoundError
+		if errors.As(err, &unknownUser) {
+			return unprocessable(err)
+		}
+		return err
 	}
 
 	return nil
 }
 
-// updateUserBatch recalculates data usage for the range of users named in the routing key.
-func (a *AMQP) updateUserBatch(ctx context.Context, routingKey string) error {
-	start, end, err := parseBatchBounds(routingKey)
+// updateUserBatch recalculates data usage for the range of users the message names.
+func (a *AMQP) updateUserBatch(ctx context.Context, delivery amqp.Delivery) error {
+	start, end, err := parseBatchMessage(delivery)
 	if err != nil {
 		return err
 	}
@@ -140,7 +190,11 @@ func (a *AMQP) sendBatchMessages(ctx context.Context) error {
 	// values that might otherwise repeatedly fall between batch bounds
 	boundModifier := rand.Intn(5) - 2
 
-	batches, err := db.NewICAT(icattx, a.deps.Config).GetUserBatchBounds(ctx, a.deps.Config.BatchSize+boundModifier)
+	// The configured size is validated, but the modifier can still take it to zero or below, where the
+	// ICAT query divides by it and the bounds loop counts away from its limit and never ends.
+	batchSize := max(a.deps.Config.BatchSize+boundModifier, 1)
+
+	batches, err := db.NewICAT(icattx, a.deps.Config).GetUserBatchBounds(ctx, batchSize)
 	if err != nil {
 		return errors.Wrap(err, "Failed getting user batch bounds")
 	}
@@ -150,7 +204,15 @@ func (a *AMQP) sendBatchMessages(ctx context.Context) error {
 	for _, batch := range batches {
 		start := a.deps.Config.TrimUserSuffix(batch[0])
 		end := a.deps.Config.TrimUserSuffix(batch[1])
-		err = a.client.PublishContext(ctx, fmt.Sprintf("%s.%s.%s", BatchUserPrefix, start, end), []byte{})
+
+		body, err := json.Marshal(&batchBounds{Start: start, End: end})
+		if err != nil {
+			return errors.Wrapf(err, "Error building the message for batch %s - %s", start, end)
+		}
+
+		// The bounds are repeated in the routing key so that they show up wherever messages are being
+		// watched; the body is what the consumer reads.
+		err = a.client.PublishContext(ctx, fmt.Sprintf("%s.%s.%s", BatchUserPrefix, start, end), body)
 		if err != nil {
 			log.Error(errors.Wrapf(err, "Error publishing message for batch %s - %s", start, end))
 			overallError = err
