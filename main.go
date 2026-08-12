@@ -1,10 +1,13 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"context"
@@ -69,9 +72,14 @@ func main() {
 		reconnect         = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel          = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
 		subscriptionsBase = flag.String("subscriptions-base-uri", "http://subscriptions", "The base URL for contacting the subscriptions service")
+		shutdownTimeout   = flag.Duration("shutdown-timeout", time.Minute, "How long to let in-flight work finish after a shutdown signal")
 	)
 
 	flag.Parse()
+
+	// Established before anything else so that a signal arriving during startup is not missed.
+	signals, stopSignals := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stopSignals()
 
 	logging.SetupLogging(*logLevel)
 
@@ -97,15 +105,19 @@ func main() {
 		log.Fatal(err)
 	}
 
+	// The deferred closes below run in reverse order, so the broker connection is closed before the
+	// pools its handlers are using.
 	dbconn = sqlx.MustConnect("postgres", configuration.DBURI)
 	log.Info("done connecting to the DE database")
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
+	defer dbconn.Close() // nolint:errcheck
 
 	icatconn = sqlx.MustConnect("postgres", configuration.ICATURI)
 	log.Info("done connecting to the ICAT database")
 	icatconn.SetMaxOpenConns(10)
 	icatconn.SetConnMaxIdleTime(time.Minute)
+	defer icatconn.Close() // nolint:errcheck
 
 	subscriptionsClient, err := clients.SubscriptionsClient(*subscriptionsBase, configuration)
 	if err != nil {
@@ -157,6 +169,29 @@ func main() {
 		Subscriptions: subscriptionsClient,
 	})
 
-	log.Infof("listening on port %d", *listenPort)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.Router()))
+	server := &http.Server{
+		Addr:    fmt.Sprintf(":%s", strconv.Itoa(*listenPort)),
+		Handler: app.Router(),
+	}
+
+	go func() {
+		log.Infof("listening on port %d", *listenPort)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+
+	<-signals.Done()
+	log.Info("shutting down")
+
+	// Stop accepting requests before closing the broker connection, so that a lookup already in flight
+	// can still enqueue the refresh it wants.
+	shutdownCtx, cancelShutdown := context.WithTimeout(context.Background(), *shutdownTimeout)
+	defer cancelShutdown()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.WithError(err).Error("the HTTP server did not shut down cleanly")
+	}
+
+	log.Info("shutdown complete")
 }
