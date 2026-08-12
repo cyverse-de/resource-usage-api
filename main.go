@@ -31,9 +31,6 @@ const serviceName = "resource-usage-api"
 var log = logging.Log.WithFields(logrus.Fields{"package": "main"})
 
 func getHandler(dbClient *sqlx.DB, subscriptions *clients.Subscriptions) amqp.HandlerFn {
-	dedb := db.New(dbClient)
-	cpuhours := cpuhours.New(dedb, subscriptions)
-
 	return func(ctx context.Context, externalID string, state messaging.JobState) {
 		var err error
 
@@ -42,7 +39,12 @@ func getHandler(dbClient *sqlx.DB, subscriptions *clients.Subscriptions) amqp.Ha
 		// TODO: should this happen for non-failed/succeeded messages?
 		if state == messaging.FailedState || state == messaging.SucceededState {
 			msgLog.Debug("calculating CPU hours for analysis")
-			if err = cpuhours.CalculateForAnalysis(ctx, externalID); err != nil {
+
+			// Deliveries are handled concurrently and db.Database carries the in-flight transaction on
+			// itself, so each message gets its own rather than sharing one across goroutines.
+			calculator := cpuhours.New(db.New(dbClient), subscriptions)
+
+			if err = calculator.CalculateForAnalysis(ctx, externalID); err != nil {
 				msgLog.Error(err)
 			}
 			msgLog.Debug("done calculating CPU hours for analysis")
@@ -54,9 +56,10 @@ func getHandler(dbClient *sqlx.DB, subscriptions *clients.Subscriptions) amqp.Ha
 
 func main() {
 	var (
-		err    error
-		k      *koanf.Koanf
-		dbconn *sqlx.DB
+		err      error
+		k        *koanf.Koanf
+		dbconn   *sqlx.DB
+		icatconn *sqlx.DB
 
 		configPath        = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
 		dotEnvPath        = flag.String("dotenv-path", cfg.DefaultDotEnvPath, "Path to the dotenv file")
@@ -96,36 +99,54 @@ func main() {
 	}
 
 	dbconn = sqlx.MustConnect("postgres", configuration.DBURI)
-	log.Info("done connecting to the database")
+	log.Info("done connecting to the DE database")
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
+
+	icatconn = sqlx.MustConnect("postgres", configuration.ICATURI)
+	log.Info("done connecting to the ICAT database")
+	icatconn.SetMaxOpenConns(10)
+	icatconn.SetConnMaxIdleTime(time.Minute)
 
 	subscriptionsClient, err := clients.SubscriptionsClient(*subscriptionsBase, configuration)
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	batchQueue, individualQueue := configuration.DataUsageQueueNames()
+
 	amqpConfig := amqp.Configuration{
-		URI:           configuration.AMQPURI,
-		Exchange:      configuration.AMQPExchangeName,
-		ExchangeType:  configuration.AMQPExchangeType,
-		Reconnect:     *reconnect,
+		URI:          configuration.AMQPURI,
+		Exchange:     configuration.AMQPExchangeName,
+		ExchangeType: configuration.AMQPExchangeType,
+		Reconnect:    *reconnect,
+
 		Queue:         *queue,
 		PrefetchCount: 10,
+
+		BatchQueue:             batchQueue,
+		IndividualQueue:        individualQueue,
+		DataUsagePrefetchCount: 1,
 	}
 
 	log.Infof("AMQP exchange name: %s", amqpConfig.Exchange)
 	log.Infof("AMQP exchange type: %s", amqpConfig.ExchangeType)
 	log.Infof("AMQP reconnect: %v", amqpConfig.Reconnect)
-	log.Infof("AMQP queue name: %s", amqpConfig.Queue)
+	log.Infof("AMQP queue names: %s, %s, %s", amqpConfig.Queue, amqpConfig.BatchQueue, amqpConfig.IndividualQueue)
 	log.Infof("AMQP prefetch amount %d", amqpConfig.PrefetchCount)
 
-	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, subscriptionsClient))
+	amqpDeps := &amqp.Dependencies{
+		DEDB:          dbconn,
+		ICAT:          icatconn,
+		Config:        configuration,
+		Subscriptions: subscriptionsClient,
+	}
+
+	amqpClient, err := amqp.New(&amqpConfig, getHandler(dbconn, subscriptionsClient), amqpDeps)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer amqpClient.Close()
-	log.Debug("after close")
 
 	log.Info("done connecting to the AMQP broker")
 
