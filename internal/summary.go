@@ -25,11 +25,11 @@ func (a *App) GetUserSummary(c echo.Context) error {
 		}
 	} else {
 		summarizerInstance = &summarizer.DefaultSummarizer{
-			Context:         c.Request().Context(),
-			Log:             log,
-			User:            a.config.FixUsername(user),
-			Database:        a.database,
-			DataUsageClient: a.dataUsageClient,
+			Context:   c.Request().Context(),
+			Log:       log,
+			User:      a.config.FixUsername(user),
+			Database:  a.database,
+			DataUsage: a.dataUsage,
 		}
 	}
 

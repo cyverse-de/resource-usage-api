@@ -68,7 +68,6 @@ func main() {
 		queue             = flag.String("queue", serviceName, "The AMQP queue name for this service")
 		reconnect         = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel          = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
-		dataUsageBase     = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
 		subscriptionsBase = flag.String("subscriptions-base-uri", "http://subscriptions", "The base URL for contacting the subscriptions service")
 	)
 
@@ -150,17 +149,13 @@ func main() {
 
 	log.Info("done connecting to the AMQP broker")
 
-	appConfig := &internal.AppConfiguration{
-		Config:           configuration,
-		DataUsageBaseURL: *dataUsageBase,
-		AMQPClient:       amqpClient,
-		Subscriptions:    subscriptionsClient,
-	}
-
-	app, err := internal.New(dbconn, appConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
+	app := internal.New(&internal.Dependencies{
+		DEDB:          dbconn,
+		ICAT:          icatconn,
+		Config:        configuration,
+		AMQPClient:    amqpClient,
+		Subscriptions: subscriptionsClient,
+	})
 
 	log.Infof("listening on port %d", *listenPort)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", strconv.Itoa(*listenPort)), app.Router()))

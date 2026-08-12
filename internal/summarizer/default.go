@@ -12,11 +12,11 @@ import (
 )
 
 type DefaultSummarizer struct {
-	Context         context.Context
-	Log             *logrus.Entry
-	User            string
-	Database        *sqlx.DB
-	DataUsageClient *clients.DataUsageAPI
+	Context   context.Context
+	Log       *logrus.Entry
+	User      string
+	Database  *sqlx.DB
+	DataUsage *db.DataUsage
 }
 
 // loadCPUUsage loads the user's CPU usage information from the DE database.
@@ -53,12 +53,12 @@ func (d *DefaultSummarizer) loadCPUUsage(summary *UserSummary) {
 	summary.CPUUsage = cpuHours
 }
 
-// loadDataUsage loads the user's data store usage information from data-usage-api.
+// loadDataUsage loads the user's data store usage information.
 func (d *DefaultSummarizer) loadDataUsage(summary *UserSummary) {
 	ctx := d.Context
 
 	// Obtain the data store usage information.
-	usage, err := d.DataUsageClient.GetUsageSummary(ctx, d.User)
+	usage, err := d.DataUsage.CurrentForUser(ctx, d.User)
 	if err != nil {
 		d.Log.WithContext(ctx).Error(err)
 		summary.Errors = append(
@@ -69,6 +69,9 @@ func (d *DefaultSummarizer) loadDataUsage(summary *UserSummary) {
 				ErrorCode: clients.GetStatusCode(err),
 			},
 		)
+		// The field is reported as an object even when it could not be loaded, so that callers see an
+		// empty record alongside the error rather than a null.
+		usage = &clients.UserDataUsage{}
 	}
 
 	// Save the Data usage information in the summary.
