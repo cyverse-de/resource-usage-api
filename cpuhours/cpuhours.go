@@ -3,6 +3,7 @@ package cpuhours
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
@@ -16,6 +17,10 @@ import (
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "cpuhours"})
+
+// ErrNoStartDate reports an analysis with no recorded start date. There is no interval to measure
+// from, and calculating again later will not produce one.
+var ErrNoStartDate = errors.New("start date is null")
 
 type CPUHours struct {
 	db            *db.Database
@@ -63,7 +68,7 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 		msgLog.Debug("done getting analysis info")
 
 		if !analysis.StartDate.Valid {
-			return res, fmt.Errorf("start date is null")
+			return res, fmt.Errorf("%w for analysis %s", ErrNoStartDate, analysisID)
 		}
 
 		// It's possible for this to be reached before the database is updated with the actual
@@ -185,35 +190,15 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 	return nil
 }
 
-// recordCalculation computes the analysis's CPU hours and commits the advanced usage watermark,
-// returning the amount still to be reported to the subscriptions service.
-func (c *CPUHours) recordCalculation(context context.Context, analysisID string) (CalculationResult, error) {
-	var res CalculationResult
-
-	if err := c.db.Begin(context); err != nil {
-		return res, err
-	}
-	defer c.db.Rollback() // nolint:errcheck
-
-	res, err := c.CPUHoursForAnalysis(context, analysisID)
-	if err != nil {
-		rollbackErr := c.db.Rollback()
-		if rollbackErr != nil {
-			log.WithError(rollbackErr).Error("failed to rollback transaction")
-		}
-		return res, err
-	}
-
-	return res, c.db.Commit()
-}
-
 // CalculateForAnalysis records an analysis's CPU hours and reports them to the subscriptions service.
 //
-// The watermark is committed before the usage is reported, because the report is an HTTP call that no
-// transaction can roll back. Since the hours are measured from that watermark, a redelivered message
-// recomputes an interval of zero and adds nothing: the ordering trades a double count, which would
-// overstate a user's usage, for a narrow window in which a crash between the commit and the report
-// loses the reading.
+// The hours are reported before the watermark they were measured from is committed, so that a report
+// the subscriptions service refuses leaves the analysis looking uncalculated and the message can be
+// retried. Committing first would advance the watermark past hours that were never reported, and no
+// retry could recover them: the next calculation measures from the advanced watermark and finds an
+// interval of zero. What remains is a commit that fails after a successful report, which counts the
+// interval twice on the retry; closing that needs the update to be idempotent on the subscriptions
+// side, which is a separate change.
 func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID string) error {
 	log.Debug("getting analysis id")
 
@@ -224,10 +209,19 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 	}
 	log.Debug("done getting analysis id")
 
-	res, err := c.recordCalculation(context, analysisID)
+	if err := c.db.Begin(context); err != nil {
+		return err
+	}
+	defer c.db.Rollback() // nolint:errcheck
+
+	res, err := c.CPUHoursForAnalysis(context, analysisID)
 	if err != nil {
 		return err
 	}
 
-	return c.addEvent(context, res)
+	if err := c.addEvent(context, res); err != nil {
+		return err
+	}
+
+	return c.db.Commit()
 }
