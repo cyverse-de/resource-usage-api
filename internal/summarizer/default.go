@@ -43,7 +43,7 @@ func (d *DefaultSummarizer) loadCPUUsage(summary *UserSummary) {
 			summary.Errors,
 			APIError{
 				Field:     "cpu_usage",
-				Message:   err.Error(),
+				Message:   "unable to load the user's CPU hours",
 				ErrorCode: http.StatusInternalServerError,
 			},
 		)
@@ -65,7 +65,7 @@ func (d *DefaultSummarizer) loadDataUsage(summary *UserSummary) {
 			summary.Errors,
 			APIError{
 				Field:     "data_usage",
-				Message:   err.Error(),
+				Message:   safeMessage(err, "unable to load the user's data usage"),
 				ErrorCode: clients.GetStatusCode(err),
 			},
 		)
