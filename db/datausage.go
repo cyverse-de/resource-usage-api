@@ -67,7 +67,10 @@ func (d *DataUsage) CurrentForUser(ctx context.Context, username string) (*clien
 	usage.UserID = userInfo.ID
 	usage.Username = userInfo.Username
 
-	if usage.Time != nil && usage.Time.Add(d.config.RefreshInterval).Before(time.Now()) {
+	// LastModified is the field QMS moves when it records a new reading. Time carries the creation of
+	// the usage record, which never moves, so measuring staleness from it would enqueue a refresh on
+	// every request once the record itself was older than the interval.
+	if usage.LastModified != nil && usage.LastModified.Add(d.config.RefreshInterval).Before(time.Now()) {
 		d.enqueueRefresh(ctx, username)
 	}
 
