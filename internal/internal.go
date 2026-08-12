@@ -23,20 +23,17 @@ type App struct {
 	userSuffix           string
 	dataUsageClient      *clients.DataUsageAPI
 	amqpClient           *amqp.AMQP
-	amqpUsageRoutingKey  string
 	qmsEnabled           bool
 	subscriptionsBaseURI string
 }
 
 // AppConfiguration contains the settings needed to configure the App.
 type AppConfiguration struct {
-	UserSuffix               string
-	DataUsageBaseURL         string
-	CurrentDataUsageEndpoint string
-	AMQPClient               *amqp.AMQP
-	AMQPUsageRoutingKey      string
-	QMSEnabled               bool
-	SubscriptionsBaseURI     string
+	UserSuffix           string
+	DataUsageBaseURL     string
+	AMQPClient           *amqp.AMQP
+	QMSEnabled           bool
+	SubscriptionsBaseURI string
 }
 
 func (a *App) FixUsername(username string) string {
@@ -66,7 +63,6 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 		userSuffix:           config.UserSuffix,
 		dataUsageClient:      dataUsageClient,
 		amqpClient:           config.AMQPClient,
-		amqpUsageRoutingKey:  config.AMQPUsageRoutingKey,
 		qmsEnabled:           config.QMSEnabled,
 		subscriptionsBaseURI: config.SubscriptionsBaseURI,
 	}

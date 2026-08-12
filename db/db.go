@@ -22,12 +22,6 @@ type CPUHours struct {
 	LastModified   time.Time   `db:"last_modified" json:"last_modified"`
 }
 
-// User has information about a user from the DE's database.
-type User struct {
-	ID       string `db:"id" json:"id"`
-	Username string `db:"username" json:"username"`
-}
-
 type DatabaseAccessor interface {
 	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
 	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)

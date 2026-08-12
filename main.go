@@ -22,8 +22,6 @@ import (
 
 	"github.com/cyverse-de/go-mod/cfg"
 
-	_ "expvar"
-
 	_ "github.com/lib/pq"
 )
 
@@ -66,7 +64,6 @@ func main() {
 		queue             = flag.String("queue", serviceName, "The AMQP queue name for this service")
 		reconnect         = flag.Bool("reconnect", false, "Whether the AMQP client should reconnect on failure")
 		logLevel          = flag.String("log-level", "info", "One of trace, debug, info, warn, error, fatal, or panic.")
-		usageRoutingKey   = flag.String("usage-routing-key", "qms.usages", "The routing key to use when sending usage updates over AMQP")
 		dataUsageBase     = flag.String("data-usage-base-url", "http://data-usage-api", "The base URL for contacting the data-usage-api service")
 		subscriptionsBase = flag.String("subscriptions-base-uri", "http://subscriptions", "The base URL for contacting the subscriptions service")
 	)
@@ -157,7 +154,6 @@ func main() {
 		UserSuffix:           userSuffix,
 		DataUsageBaseURL:     *dataUsageBase,
 		AMQPClient:           amqpClient,
-		AMQPUsageRoutingKey:  *usageRoutingKey,
 		QMSEnabled:           qmsEnabled,
 		SubscriptionsBaseURI: *subscriptionsBase,
 	}
