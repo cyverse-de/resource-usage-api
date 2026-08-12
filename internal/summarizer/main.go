@@ -1,6 +1,8 @@
 package summarizer
 
 import (
+	"errors"
+
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/logging"
@@ -13,13 +15,18 @@ type APIError struct {
 	ErrorCode int    `json:"error_code"`
 }
 
-// NewAPIError is a simple convenience function for generating a new API error struct.
-func NewAPIError(field string, message string, errorCode int) *APIError {
-	return &APIError{
-		Field:     field,
-		Message:   message,
-		ErrorCode: errorCode,
+// safeMessage returns the error's own text when it describes the request rather than this service's
+// internals, and the fallback otherwise. Database errors name schemas, tables and constraints, and
+// the errors from the services behind this one carry their URLs; a summary is a user-facing response
+// and neither belongs in it.
+func safeMessage(err error, fallback string) string {
+	var unknownUser *db.UserNotFoundError
+	var noUsage *clients.NoUsageRecordedError
+
+	if errors.As(err, &unknownUser) || errors.As(err, &noUsage) {
+		return err.Error()
 	}
+	return fallback
 }
 
 // UserSummary contains the data summarizing the user's current resource

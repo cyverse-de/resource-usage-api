@@ -69,22 +69,3 @@ type Subscription struct {
 	Usages             []Usage             `json:"usages"`
 	Addons             []SubscriptionAddon `json:"addons"`
 }
-
-// Resource type name constants.
-const (
-	ResourceTypeCPUHours = "cpu.hours"
-	ResourceTypeDataSize = "data.size"
-)
-
-// ExtractUsage extracts the usage record for a given resource type from the user plan.
-func (s *Subscription) ExtractUsage(resourceType string) *Usage {
-
-	// Search for the usage record matching the givn resource type.
-	for _, usageRecord := range s.Usages {
-		if usageRecord.ResourceType.Name == resourceType {
-			return &usageRecord
-		}
-	}
-
-	return nil
-}

@@ -8,8 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const otelName = "github.com/cyverse-de/resource-usage-api/internal"
-
 // GetUserSummary is an echo request handler for requests to get a user's
 // resource usage and current plan (if QMS is enabled).
 func (a *App) GetUserSummary(c echo.Context) error {
@@ -19,20 +17,19 @@ func (a *App) GetUserSummary(c echo.Context) error {
 
 	// Create the summarizer instance.
 	var summarizerInstance summarizer.Summarizer
-	if a.qmsEnabled {
+	if a.config.QMSEnabled {
 		summarizerInstance = &summarizer.HTTPSummarizer{
-			Context: c.Request().Context(),
-			BaseURI: a.subscriptionsBaseURI,
-			User:    a.FixUsername(user),
+			Context:       c.Request().Context(),
+			Subscriptions: a.subscriptions,
+			User:          a.config.FixUsername(user),
 		}
 	} else {
 		summarizerInstance = &summarizer.DefaultSummarizer{
-			Context:         c.Request().Context(),
-			Log:             log,
-			User:            a.FixUsername(user),
-			OTelName:        otelName,
-			Database:        a.database,
-			DataUsageClient: a.dataUsageClient,
+			Context:   c.Request().Context(),
+			Log:       log,
+			User:      a.config.FixUsername(user),
+			Database:  a.database,
+			DataUsage: a.dataUsage,
 		}
 	}
 

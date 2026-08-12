@@ -2,62 +2,24 @@ package summarizer
 
 import (
 	"context"
-	"encoding/json"
-	"io"
-	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/cockroachdb/apd"
-	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/db"
 )
 
 type HTTPSummarizer struct {
-	Context context.Context
-	BaseURI string
-	User    string
+	Context       context.Context
+	Subscriptions *clients.Subscriptions
+	User          string
 }
 
 func (h *HTTPSummarizer) LoadSummary() *UserSummary {
-	var (
-		err      error
-		reqURL   string
-		summary  UserSummary
-		response qms.SubscriptionResponse
-	)
+	var summary UserSummary
 
-	reqURL, err = url.JoinPath(h.BaseURI, "summary", h.User)
+	response, err := h.Subscriptions.GetSubscriptionSummary(h.Context, h.User)
 	if err != nil {
-		log.Error(err)
-		return &summary
-	}
-
-	request, err := http.NewRequestWithContext(h.Context, http.MethodGet, reqURL, nil)
-	if err != nil {
-		log.Error(err)
-		return &summary
-	}
-
-	request.Header.Add("Content-Type", "application/json")
-
-	client := &http.Client{}
-
-	httpResp, err := client.Do(request)
-	if err != nil {
-		log.Error(err)
-		return &summary
-	}
-	defer httpResp.Body.Close() // nolint: errcheck
-
-	b, err := io.ReadAll(httpResp.Body)
-	if err != nil {
-		log.Error(err)
-		return &summary
-	}
-
-	if err = json.Unmarshal(b, &response); err != nil {
 		log.Error(err)
 		return &summary
 	}
@@ -140,13 +102,15 @@ func (h *HTTPSummarizer) LoadSummary() *UserSummary {
 				log.Error(err)
 				return nil
 			}
-			dTime := rUsage.LastModifiedAt.AsTime()
+			// Time carries the creation time here to match the data-usage lookup, which reports the
+			// same field from CreatedAt.
+			createdAt := rUsage.CreatedAt.AsTime()
 			summary.DataUsage = &clients.UserDataUsage{
 				ID:           rUsage.Uuid,
 				UserID:       response.Subscription.User.Uuid,
 				Username:     response.Subscription.User.Username,
 				Total:        dv,
-				Time:         &dTime,
+				Time:         &createdAt,
 				LastModified: &lma,
 			}
 		}

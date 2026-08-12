@@ -9,23 +9,19 @@ import (
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/jmoiron/sqlx"
 	"github.com/sirupsen/logrus"
-	"go.opentelemetry.io/otel"
 )
 
 type DefaultSummarizer struct {
-	Context         context.Context
-	Log             *logrus.Entry
-	User            string
-	OTelName        string
-	Database        *sqlx.DB
-	DataUsageClient *clients.DataUsageAPI
+	Context   context.Context
+	Log       *logrus.Entry
+	User      string
+	Database  *sqlx.DB
+	DataUsage *db.DataUsage
 }
 
 // loadCPUUsage loads the user's CPU usage information from the DE database.
 func (d *DefaultSummarizer) loadCPUUsage(summary *UserSummary) {
-
-	// Start an OpenTelemetry span.
-	ctx, span := otel.Tracer(d.OTelName).Start(d.Context, "summary: CPU hours")
+	ctx := d.Context
 
 	// Load the CPU usage information from the database.
 	database := db.New(d.Database)
@@ -47,7 +43,7 @@ func (d *DefaultSummarizer) loadCPUUsage(summary *UserSummary) {
 			summary.Errors,
 			APIError{
 				Field:     "cpu_usage",
-				Message:   err.Error(),
+				Message:   "unable to load the user's CPU hours",
 				ErrorCode: http.StatusInternalServerError,
 			},
 		)
@@ -55,36 +51,31 @@ func (d *DefaultSummarizer) loadCPUUsage(summary *UserSummary) {
 
 	// Save the CPU usage information in the summary.
 	summary.CPUUsage = cpuHours
-
-	// Close the OpenTelemetry span.
-	span.End()
 }
 
-// loadDataUsage loads the user's data store usage information from data-usage-api.
+// loadDataUsage loads the user's data store usage information.
 func (d *DefaultSummarizer) loadDataUsage(summary *UserSummary) {
-
-	// Start an OpenTelemetry span.
-	ctx, span := otel.Tracer(d.OTelName).Start(d.Context, "summary: data usage")
+	ctx := d.Context
 
 	// Obtain the data store usage information.
-	usage, err := d.DataUsageClient.GetUsageSummary(ctx, d.User)
+	usage, err := d.DataUsage.CurrentForUser(ctx, d.User)
 	if err != nil {
 		d.Log.WithContext(ctx).Error(err)
 		summary.Errors = append(
 			summary.Errors,
 			APIError{
 				Field:     "data_usage",
-				Message:   err.Error(),
+				Message:   safeMessage(err, "unable to load the user's data usage"),
 				ErrorCode: clients.GetStatusCode(err),
 			},
 		)
+		// The field is reported as an object even when it could not be loaded, so that callers see an
+		// empty record alongside the error rather than a null.
+		usage = &clients.UserDataUsage{}
 	}
 
 	// Save the Data usage information in the summary.
 	summary.DataUsage = usage
-
-	// Close the OpenTelemetry span.
-	span.End()
 }
 
 // LoadSummary aggregates and summarizes the user's resource usage information.

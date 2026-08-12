@@ -5,12 +5,24 @@ import (
 	"database/sql"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/cockroachdb/apd"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
+	"github.com/sirupsen/logrus"
 )
 
-var log = logging.Log // nolint
+var log = logging.Log.WithFields(logrus.Fields{"package": "db"})
+
+// psql builds queries for the schema-qualified and dynamically-shaped statements in this package.
+// Statements with a fixed shape are written as SQL literals instead.
+var psql = squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar)
+
+// logStats records connection pool usage when a transaction is opened.
+func logStats(name string, db DatabaseAccessor) {
+	stats := db.Stats()
+	log.Debugf("%s stats: %d/%d open; %d/%d used/idle", name, stats.OpenConnections, stats.MaxOpenConnections, stats.InUse, stats.Idle)
+}
 
 type CPUHours struct {
 	ID             string      `db:"id" json:"id"`
@@ -22,32 +34,40 @@ type CPUHours struct {
 	LastModified   time.Time   `db:"last_modified" json:"last_modified"`
 }
 
-// User has information about a user from the DE's database.
-type User struct {
-	ID       string `db:"id" json:"id"`
-	Username string `db:"username" json:"username"`
+// Queryer is the query surface shared by a connection pool and a transaction. Code that must run
+// inside a transaction takes this rather than DatabaseAccessor, so that a pool cannot be passed by
+// mistake.
+type Queryer interface {
+	QueryRowxContext(context.Context, string, ...any) *sqlx.Row
+	QueryxContext(context.Context, string, ...any) (*sqlx.Rows, error)
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+	GetContext(context.Context, any, string, ...any) error
+	SelectContext(context.Context, any, string, ...any) error
 }
 
+// DatabaseAccessor is a Queryer that can also open transactions and report pool statistics. Only a
+// connection pool satisfies it.
 type DatabaseAccessor interface {
-	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
-	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	Queryer
 	BeginTxx(context.Context, *sql.TxOptions) (*sqlx.Tx, error)
+	Stats() sql.DBStats
 }
 
+// TxAccessor is a Queryer that can be committed or rolled back. Only a transaction satisfies it.
 type TxAccessor interface {
-	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
-	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
+	Queryer
 	Commit() error
 	Rollback() error
 }
 
-type Queryer interface {
-	QueryRowxContext(context.Context, string, ...interface{}) *sqlx.Row
-	QueryxContext(context.Context, string, ...interface{}) (*sqlx.Rows, error)
-	ExecContext(context.Context, string, ...interface{}) (sql.Result, error)
-}
+// The interfaces above are meaningful only if the two concrete types keep satisfying exactly the ones
+// they are meant to.
+var (
+	_ DatabaseAccessor = (*sqlx.DB)(nil)
+	_ TxAccessor       = (*sqlx.Tx)(nil)
+	_ Queryer          = (*sqlx.DB)(nil)
+	_ Queryer          = (*sqlx.Tx)(nil)
+)
 
 type Database struct {
 	db DatabaseAccessor
