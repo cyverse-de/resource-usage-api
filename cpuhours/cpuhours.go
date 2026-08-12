@@ -185,20 +185,35 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 	return nil
 }
 
-func (c *CPUHours) CalculateForAnalysisByID(context context.Context, analysisID string) error {
-	var (
-		res CalculationResult
-		err error
-	)
+// recordCalculation computes the analysis's CPU hours and commits the advanced usage watermark,
+// returning the amount still to be reported to the subscriptions service.
+func (c *CPUHours) recordCalculation(context context.Context, analysisID string) (CalculationResult, error) {
+	var res CalculationResult
 
-	res, err = c.CPUHoursForAnalysis(context, analysisID)
+	if err := c.db.Begin(context); err != nil {
+		return res, err
+	}
+	defer c.db.Rollback() // nolint:errcheck
+
+	res, err := c.CPUHoursForAnalysis(context, analysisID)
 	if err != nil {
-		return err
+		rollbackErr := c.db.Rollback()
+		if rollbackErr != nil {
+			log.WithError(rollbackErr).Error("failed to rollback transaction")
+		}
+		return res, err
 	}
 
-	return c.addEvent(context, res)
+	return res, c.db.Commit()
 }
 
+// CalculateForAnalysis records an analysis's CPU hours and reports them to the subscriptions service.
+//
+// The watermark is committed before the usage is reported, because the report is an HTTP call that no
+// transaction can roll back. Since the hours are measured from that watermark, a redelivered message
+// recomputes an interval of zero and adds nothing: the ordering trades a double count, which would
+// overstate a user's usage, for a narrow window in which a crash between the commit and the report
+// loses the reading.
 func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID string) error {
 	log.Debug("getting analysis id")
 
@@ -209,20 +224,10 @@ func (c *CPUHours) CalculateForAnalysis(context context.Context, externalID stri
 	}
 	log.Debug("done getting analysis id")
 
-	err = c.db.Begin(context)
+	res, err := c.recordCalculation(context, analysisID)
 	if err != nil {
 		return err
 	}
-	defer c.db.Rollback() // nolint:errcheck
 
-	err = c.CalculateForAnalysisByID(context, analysisID)
-	if err != nil {
-		rollbackErr := c.db.Rollback()
-		if rollbackErr != nil {
-			log.WithError(rollbackErr).Error("failed to rollback transaction")
-		}
-		return err
-	} else {
-		return c.db.Commit()
-	}
+	return c.addEvent(context, res)
 }
