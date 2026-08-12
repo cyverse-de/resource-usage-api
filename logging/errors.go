@@ -3,7 +3,6 @@ package logging
 import (
 	"encoding/json"
 	"net/http"
-	"strconv"
 
 	"github.com/labstack/echo/v4"
 )
@@ -22,7 +21,7 @@ func HTTPErrorHandler(err error, c echo.Context) {
 		body = t
 	case *echo.HTTPError:
 		code = t.Code
-		body = ErrorResponse{Message: echoErrorMessage(t), ErrorCode: strconv.Itoa(t.Code)}
+		body = ErrorResponse{Message: echoErrorMessage(t), ErrorCode: t.Code}
 	default:
 		body = NewErrorResponse(err)
 	}
@@ -60,7 +59,7 @@ type ErrorResponse struct {
 	Message string `json:"message"`
 	// HTTPStatusCode is the status the response is sent with. It is not part of the response body.
 	HTTPStatusCode int             `json:"-"`
-	ErrorCode      string          `json:"error_code,omitempty"`
+	ErrorCode      int             `json:"error_code,omitempty"`
 	Details        *map[string]any `json:"details,omitempty"`
 }
 

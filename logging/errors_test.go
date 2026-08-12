@@ -34,28 +34,28 @@ func TestHTTPErrorHandlerHonorsStatusCode(t *testing.T) {
 		err         error
 		wantStatus  int
 		wantMessage string
-		wantCode    string
+		wantCode    int
 	}{
 		{
 			name:        "not found is preserved",
-			err:         ErrorResponse{Message: "no data usage found", ErrorCode: "404", HTTPStatusCode: http.StatusNotFound},
+			err:         ErrorResponse{Message: "no data usage found", ErrorCode: http.StatusNotFound, HTTPStatusCode: http.StatusNotFound},
 			wantStatus:  http.StatusNotFound,
 			wantMessage: "no data usage found",
-			wantCode:    "404",
+			wantCode:    http.StatusNotFound,
 		},
 		{
 			name:        "internal error is preserved",
-			err:         ErrorResponse{Message: "upstream exploded", ErrorCode: "500", HTTPStatusCode: http.StatusInternalServerError},
+			err:         ErrorResponse{Message: "upstream exploded", ErrorCode: http.StatusInternalServerError, HTTPStatusCode: http.StatusInternalServerError},
 			wantStatus:  http.StatusInternalServerError,
 			wantMessage: "upstream exploded",
-			wantCode:    "500",
+			wantCode:    http.StatusInternalServerError,
 		},
 		{
 			name:        "pointer receiver is handled the same way",
-			err:         &ErrorResponse{Message: "no username provided", ErrorCode: "400", HTTPStatusCode: http.StatusBadRequest},
+			err:         &ErrorResponse{Message: "no username provided", ErrorCode: http.StatusBadRequest, HTTPStatusCode: http.StatusBadRequest},
 			wantStatus:  http.StatusBadRequest,
 			wantMessage: "no username provided",
-			wantCode:    "400",
+			wantCode:    http.StatusBadRequest,
 		},
 		{
 			// Responses built before HTTPStatusCode existed leave it zero.
@@ -76,8 +76,9 @@ func TestHTTPErrorHandlerHonorsStatusCode(t *testing.T) {
 			if body["message"] != tt.wantMessage {
 				t.Errorf("message = %v, want %q", body["message"], tt.wantMessage)
 			}
-			if tt.wantCode != "" && body["error_code"] != tt.wantCode {
-				t.Errorf("error_code = %v, want %q", body["error_code"], tt.wantCode)
+			// error_code is a JSON number: terrain's schema for this service types it as an integer.
+			if tt.wantCode != 0 && body["error_code"] != float64(tt.wantCode) {
+				t.Errorf("error_code = %v (%T), want %d as a number", body["error_code"], body["error_code"], tt.wantCode)
 			}
 			if _, ok := body["HTTPStatusCode"]; ok {
 				t.Error("HTTPStatusCode should not appear in the response body")

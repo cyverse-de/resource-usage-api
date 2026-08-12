@@ -2,23 +2,12 @@ package internal
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/db"
-	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/labstack/echo/v4"
 	"github.com/pkg/errors"
 )
-
-// errorResponse builds a response carrying both the status to send and the matching error code.
-func errorResponse(status int, message string) logging.ErrorResponse {
-	return logging.ErrorResponse{
-		Message:        message,
-		ErrorCode:      strconv.Itoa(status),
-		HTTPStatusCode: status,
-	}
-}
 
 // username reads and qualifies the username from the request path.
 func (a *App) username(c echo.Context) (string, error) {
@@ -45,13 +34,12 @@ func (a *App) UserCurrentUsageHandler(c echo.Context) error {
 
 		switch {
 		case errors.As(err, &unknownUser):
-			return errorResponse(http.StatusBadRequest, err.Error())
+			return errorResponse(http.StatusBadRequest, unknownUser.Error())
 		case errors.As(err, &noUsage):
 			// A refresh has been enqueued; a later request will find the reading.
 			return errorResponse(http.StatusNotFound, "No data usage information found for user")
 		default:
-			log.WithContext(ctx).Error(err)
-			return errorResponse(http.StatusInternalServerError, err.Error())
+			return internalError(ctx, err, "Failed fetching current usage")
 		}
 	}
 
@@ -70,9 +58,13 @@ func (a *App) UpdateUserCurrentUsageHandler(c echo.Context) error {
 
 	usage, err := db.NewBoth(a.database, a.icat, a.config, a.subscriptions).UpdateUserDataUsage(ctx, user)
 	if err != nil {
-		e := errors.Wrap(err, "Failed updating usage information")
-		log.WithContext(ctx).Error(e)
-		return errorResponse(http.StatusInternalServerError, e.Error())
+		// An unknown user is the caller's mistake rather than this service's, and is reported the same
+		// way the lookup route reports it.
+		var unknownUser *db.UserNotFoundError
+		if errors.As(err, &unknownUser) {
+			return errorResponse(http.StatusBadRequest, unknownUser.Error())
+		}
+		return internalError(ctx, err, "Failed updating usage information")
 	}
 
 	return c.JSON(http.StatusOK, usage)
@@ -89,9 +81,7 @@ func (a *App) UserDataOverageHandler(c echo.Context) error {
 
 	overages, err := a.subscriptions.AllResourceOveragesForUser(ctx, user)
 	if err != nil {
-		e := errors.Wrap(err, "failed getting all resource overages")
-		log.WithContext(ctx).Error(e)
-		return errorResponse(http.StatusInternalServerError, e.Error())
+		return internalError(ctx, err, "Failed getting all resource overages")
 	}
 
 	hasDataOverage := false
