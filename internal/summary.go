@@ -8,8 +8,6 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const otelName = "github.com/cyverse-de/resource-usage-api/internal"
-
 // GetUserSummary is an echo request handler for requests to get a user's
 // resource usage and current plan (if QMS is enabled).
 func (a *App) GetUserSummary(c echo.Context) error {
@@ -30,7 +28,6 @@ func (a *App) GetUserSummary(c echo.Context) error {
 			Context:         c.Request().Context(),
 			Log:             log,
 			User:            a.config.FixUsername(user),
-			OTelName:        otelName,
 			Database:        a.database,
 			DataUsageClient: a.dataUsageClient,
 		}
