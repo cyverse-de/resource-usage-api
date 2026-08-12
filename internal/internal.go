@@ -1,12 +1,11 @@
 package internal
 
 import (
-	"fmt"
 	"net/http"
-	"strings"
 
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/clients"
+	"github.com/cyverse-de/resource-usage-api/config"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v4"
@@ -20,38 +19,24 @@ var log = logging.Log.WithFields(logrus.Fields{"package": "internal"})
 type App struct {
 	database             *sqlx.DB
 	router               *echo.Echo
-	userSuffix           string
+	config               *config.Config
 	dataUsageClient      *clients.DataUsageAPI
 	amqpClient           *amqp.AMQP
-	qmsEnabled           bool
 	subscriptionsBaseURI string
 }
 
 // AppConfiguration contains the settings needed to configure the App.
 type AppConfiguration struct {
-	UserSuffix           string
+	Config               *config.Config
 	DataUsageBaseURL     string
 	AMQPClient           *amqp.AMQP
-	QMSEnabled           bool
 	SubscriptionsBaseURI string
 }
 
-func (a *App) FixUsername(username string) string {
-	if !strings.HasSuffix(a.userSuffix, username) {
-		// Only add a @ if the configured user suffix doesn't already
-		// start with one.
-		if strings.HasPrefix(a.userSuffix, "@") {
-			return fmt.Sprintf("%s%s", username, a.userSuffix)
-		}
-		return fmt.Sprintf("%s@%s", username, a.userSuffix)
-	}
-	return username
-}
-
 // New creates a new app instance for provided configuration.
-func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
+func New(db *sqlx.DB, appConfig *AppConfiguration) (*App, error) {
 	// Create the client libraries for the downstream services.
-	dataUsageClient, err := clients.DataUsageAPIClient(config.DataUsageBaseURL)
+	dataUsageClient, err := clients.DataUsageAPIClient(appConfig.DataUsageBaseURL)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to create the data-usage-api client")
 	}
@@ -60,15 +45,15 @@ func New(db *sqlx.DB, config *AppConfiguration) (*App, error) {
 	app := &App{
 		database:             db,
 		router:               echo.New(),
-		userSuffix:           config.UserSuffix,
+		config:               appConfig.Config,
 		dataUsageClient:      dataUsageClient,
-		amqpClient:           config.AMQPClient,
-		qmsEnabled:           config.QMSEnabled,
-		subscriptionsBaseURI: config.SubscriptionsBaseURI,
+		amqpClient:           appConfig.AMQPClient,
+		subscriptionsBaseURI: appConfig.SubscriptionsBaseURI,
 	}
 
 	return app, nil
 }
+
 func (a *App) HelloHandler(c echo.Context) error {
 	return c.String(http.StatusOK, "Hello from resource-usage-api")
 }

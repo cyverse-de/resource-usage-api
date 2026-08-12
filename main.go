@@ -12,6 +12,7 @@ import (
 	"github.com/cyverse-de/messaging/v9"
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/clients"
+	"github.com/cyverse-de/resource-usage-api/config"
 	"github.com/cyverse-de/resource-usage-api/cpuhours"
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/cyverse-de/resource-usage-api/internal"
@@ -54,7 +55,7 @@ func getHandler(dbClient *sqlx.DB, subscriptions *clients.Subscriptions) amqp.Ha
 func main() {
 	var (
 		err    error
-		config *koanf.Koanf
+		k      *koanf.Koanf
 		dbconn *sqlx.DB
 
 		configPath        = flag.String("config", cfg.DefaultConfigPath, "Full path to the configuration file")
@@ -77,7 +78,7 @@ func main() {
 	log.Infof("dotenv file is %s", *dotEnvPath)
 	log.Infof("subscriptions base URI is %s", *subscriptionsBase)
 
-	config, err = cfg.Init(&cfg.Settings{
+	k, err = cfg.Init(&cfg.Settings{
 		EnvPrefix:   *envPrefix,
 		ConfigPath:  *configPath,
 		DotEnvPath:  *dotEnvPath,
@@ -89,34 +90,12 @@ func main() {
 	}
 	log.Infof("done reading configuration from %s", *configPath)
 
-	dbURI := config.String("db.uri")
-	if dbURI == "" {
-		log.Fatal("db.uri must be set in the configuration file")
+	configuration, err := config.New(k)
+	if err != nil {
+		log.Fatal(err)
 	}
 
-	amqpURI := config.String("amqp.uri")
-	if amqpURI == "" {
-		log.Fatal("amqp.uri must be set in the configuration file")
-	}
-
-	amqpExchange := config.String("amqp.exchange.name")
-	if amqpExchange == "" {
-		log.Fatal("amqp.exchange.name must be set in the configuration file")
-	}
-
-	amqpExchangeType := config.String("amqp.exchange.type")
-	if amqpExchangeType == "" {
-		log.Fatal("amqp.exchange.type must be set in the configuration file")
-	}
-
-	userSuffix := config.String("users.domain")
-	if userSuffix == "" {
-		log.Fatal("users.domain must be set in the configuration file")
-	}
-
-	qmsEnabled := config.Bool("qms.enabled")
-
-	dbconn = sqlx.MustConnect("postgres", dbURI)
+	dbconn = sqlx.MustConnect("postgres", configuration.DBURI)
 	log.Info("done connecting to the database")
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
@@ -127,9 +106,9 @@ func main() {
 	}
 
 	amqpConfig := amqp.Configuration{
-		URI:           amqpURI,
-		Exchange:      amqpExchange,
-		ExchangeType:  amqpExchangeType,
+		URI:           configuration.AMQPURI,
+		Exchange:      configuration.AMQPExchangeName,
+		ExchangeType:  configuration.AMQPExchangeType,
 		Reconnect:     *reconnect,
 		Queue:         *queue,
 		PrefetchCount: 10,
@@ -151,10 +130,9 @@ func main() {
 	log.Info("done connecting to the AMQP broker")
 
 	appConfig := &internal.AppConfiguration{
-		UserSuffix:           userSuffix,
+		Config:               configuration,
 		DataUsageBaseURL:     *dataUsageBase,
 		AMQPClient:           amqpClient,
-		QMSEnabled:           qmsEnabled,
 		SubscriptionsBaseURI: *subscriptionsBase,
 	}
 
