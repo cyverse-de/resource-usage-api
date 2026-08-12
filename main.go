@@ -100,7 +100,7 @@ func main() {
 	dbconn.SetMaxOpenConns(10)
 	dbconn.SetConnMaxIdleTime(time.Minute)
 
-	subscriptionsClient, err := clients.SubscriptionsClient(*subscriptionsBase)
+	subscriptionsClient, err := clients.SubscriptionsClient(*subscriptionsBase, configuration)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -130,10 +130,10 @@ func main() {
 	log.Info("done connecting to the AMQP broker")
 
 	appConfig := &internal.AppConfiguration{
-		Config:               configuration,
-		DataUsageBaseURL:     *dataUsageBase,
-		AMQPClient:           amqpClient,
-		SubscriptionsBaseURI: *subscriptionsBase,
+		Config:           configuration,
+		DataUsageBaseURL: *dataUsageBase,
+		AMQPClient:       amqpClient,
+		Subscriptions:    subscriptionsClient,
 	}
 
 	app, err := internal.New(dbconn, appConfig)

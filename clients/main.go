@@ -16,41 +16,6 @@ var usernameSuffixRegexp = regexp.MustCompile("@.*$")
 // calls it replaced used, so a wedged downstream service can't pin a goroutine indefinitely.
 var client = http.Client{Transport: http.DefaultTransport, Timeout: 30 * time.Second}
 
-// HTTPError represents an error returned by an HTTP service
-type HTTPError struct {
-	statusCode int
-	message    string
-}
-
-// NewHTTPError returns a new HTTPError.
-func NewHTTPError(statusCode int, message string) *HTTPError {
-	return &HTTPError{
-		statusCode: statusCode,
-		message:    message,
-	}
-}
-
-// Error returns the error message associated with an HTTPError.
-func (e *HTTPError) Error() string {
-	return e.message
-}
-
-// StatusCode returns the status code associated with an HTTPError.
-func (e *HTTPError) StatusCode() int {
-	return e.statusCode
-}
-
-// GetStatusCode returns the appropriate status code to use for an error returned by one of the client libraries.
-// If the error happens to be an HTTP error, then the original status code is returned. Otherwise, the code defaults
-// to http.StatusInternalServerError.
-func GetStatusCode(e error) int {
-	herror, ok := e.(*HTTPError)
-	if ok {
-		return herror.StatusCode()
-	}
-	return http.StatusInternalServerError
-}
-
 // parseBaseURL parses a client's raw base URL and normalizes its path. Values that could only produce broken
 // request URLs later (missing host, non-HTTP scheme) are rejected here so misconfiguration fails at startup.
 func parseBaseURL(rawURL string) (*url.URL, error) {

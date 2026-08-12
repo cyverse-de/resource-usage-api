@@ -17,20 +17,20 @@ var log = logging.Log.WithFields(logrus.Fields{"package": "internal"})
 
 // App encapsulates the application logic.
 type App struct {
-	database             *sqlx.DB
-	router               *echo.Echo
-	config               *config.Config
-	dataUsageClient      *clients.DataUsageAPI
-	amqpClient           *amqp.AMQP
-	subscriptionsBaseURI string
+	database        *sqlx.DB
+	router          *echo.Echo
+	config          *config.Config
+	dataUsageClient *clients.DataUsageAPI
+	amqpClient      *amqp.AMQP
+	subscriptions   *clients.Subscriptions
 }
 
 // AppConfiguration contains the settings needed to configure the App.
 type AppConfiguration struct {
-	Config               *config.Config
-	DataUsageBaseURL     string
-	AMQPClient           *amqp.AMQP
-	SubscriptionsBaseURI string
+	Config           *config.Config
+	DataUsageBaseURL string
+	AMQPClient       *amqp.AMQP
+	Subscriptions    *clients.Subscriptions
 }
 
 // New creates a new app instance for provided configuration.
@@ -43,12 +43,12 @@ func New(db *sqlx.DB, appConfig *AppConfiguration) (*App, error) {
 
 	// Create the app instance.
 	app := &App{
-		database:             db,
-		router:               echo.New(),
-		config:               appConfig.Config,
-		dataUsageClient:      dataUsageClient,
-		amqpClient:           appConfig.AMQPClient,
-		subscriptionsBaseURI: appConfig.SubscriptionsBaseURI,
+		database:        db,
+		router:          echo.New(),
+		config:          appConfig.Config,
+		dataUsageClient: dataUsageClient,
+		amqpClient:      appConfig.AMQPClient,
+		subscriptions:   appConfig.Subscriptions,
 	}
 
 	return app, nil

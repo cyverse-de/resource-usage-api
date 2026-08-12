@@ -21,9 +21,9 @@ func (a *App) GetUserSummary(c echo.Context) error {
 	var summarizerInstance summarizer.Summarizer
 	if a.config.QMSEnabled {
 		summarizerInstance = &summarizer.HTTPSummarizer{
-			Context: c.Request().Context(),
-			BaseURI: a.subscriptionsBaseURI,
-			User:    a.config.FixUsername(user),
+			Context:       c.Request().Context(),
+			Subscriptions: a.subscriptions,
+			User:          a.config.FixUsername(user),
 		}
 	} else {
 		summarizerInstance = &summarizer.DefaultSummarizer{
