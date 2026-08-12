@@ -106,7 +106,7 @@ func (c *Subscriptions) AddUserUpdate(ctx context.Context, username string, upda
 	}
 
 	var response qms.AddUpdateResponse
-	if err = c.do(ctx, http.MethodPut, c.baseURL.JoinPath("user", user, "updates"), bytes.NewReader(body), &response); err != nil {
+	if err = c.do(ctx, http.MethodPut, joinPath(c.baseURL, "user", user, "updates"), bytes.NewReader(body), &response); err != nil {
 		return err
 	}
 
@@ -120,7 +120,7 @@ func (c *Subscriptions) UserCurrentDataUsage(ctx context.Context, username strin
 	user := c.config.FixUsername(username)
 
 	var response qms.UsageList
-	if err := c.do(ctx, http.MethodGet, c.baseURL.JoinPath("users", user, "usages"), nil, &response); err != nil {
+	if err := c.do(ctx, http.MethodGet, joinPath(c.baseURL, "users", user, "usages"), nil, &response); err != nil {
 		return nil, err
 	}
 	if err := serviceError(response.Error); err != nil {
@@ -154,7 +154,7 @@ func (c *Subscriptions) AllResourceOveragesForUser(ctx context.Context, username
 	user := c.config.FixUsername(username)
 
 	var response qms.OverageList
-	if err := c.do(ctx, http.MethodGet, c.baseURL.JoinPath("users", user, "overages"), nil, &response); err != nil {
+	if err := c.do(ctx, http.MethodGet, joinPath(c.baseURL, "users", user, "overages"), nil, &response); err != nil {
 		return nil, err
 	}
 	if err := serviceError(response.Error); err != nil {
@@ -185,7 +185,7 @@ func (c *Subscriptions) UpdateUsageForUser(ctx context.Context, username string,
 	}
 
 	var response qms.AddUpdateResponse
-	if err = c.do(ctx, http.MethodPut, c.baseURL.JoinPath("user", user, "updates"), bytes.NewReader(body), &response); err != nil {
+	if err = c.do(ctx, http.MethodPut, joinPath(c.baseURL, "user", user, "updates"), bytes.NewReader(body), &response); err != nil {
 		return nil, err
 	}
 	if err = serviceError(response.Error); err != nil {
@@ -231,7 +231,7 @@ func (c *Subscriptions) GetSubscriptionSummary(ctx context.Context, username str
 	user := c.config.FixUsername(username)
 
 	var response qms.SubscriptionResponse
-	if err := c.do(ctx, http.MethodGet, c.baseURL.JoinPath("summary", user), nil, &response); err != nil {
+	if err := c.do(ctx, http.MethodGet, joinPath(c.baseURL, "summary", user), nil, &response); err != nil {
 		return nil, err
 	}
 	if err := serviceError(response.Error); err != nil {
