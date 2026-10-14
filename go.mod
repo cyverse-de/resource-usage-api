@@ -8,7 +8,7 @@ require (
 	github.com/cyverse-de/go-mod/cfg v0.0.2
 	github.com/cyverse-de/messaging/v9 v9.1.5
 	github.com/cyverse-de/p/go/ptypes v0.1.0
-	github.com/cyverse-de/p/go/qms v0.3.0
+	github.com/cyverse-de/p/go/qms v0.3.2
 	github.com/cyverse-de/p/go/svcerror v0.1.0
 	github.com/guregu/null v4.0.0+incompatible
 	github.com/jmoiron/sqlx v1.3.5

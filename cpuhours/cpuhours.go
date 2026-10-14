@@ -22,6 +22,48 @@ var log = logging.Log.WithFields(logrus.Fields{"package": "cpuhours"})
 // from, and calculating again later will not produce one.
 var ErrNoStartDate = errors.New("start date is null")
 
+// gpuMetadata is the JSON structure stored in the qms.Update.Metadata field
+// for GPU usage events.
+type gpuMetadata struct {
+	GPUModels []string `json:"gpu_models"`
+}
+
+// extractGPUModels parses the job submission JSON to retrieve the requested
+// GPU model names. Returns nil on any parse failure — metadata is best-effort.
+//
+// NOTE: The inline struct below mirrors the relevant portion of model.Job's JSON
+// schema (specifically Steps[].Component.Container.GPUModels). If the JSON key
+// "gpu_models" changes in model/v10, this extraction will silently stop finding
+// models. This is acceptable because metadata is informational, not billing-critical.
+func extractGPUModels(submissionJSON string) []string {
+	if submissionJSON == "" {
+		return nil
+	}
+	// The submission is a full model.Job JSON. We only need the GPU models
+	// from the first step's container.
+	var sub struct {
+		Steps []struct {
+			Component struct {
+				Container struct {
+					GPUModels []string `json:"gpu_models"`
+				} `json:"container"`
+			} `json:"component"`
+		} `json:"steps"`
+	}
+	if err := json.Unmarshal([]byte(submissionJSON), &sub); err != nil {
+		log.Debugf("failed to parse submission JSON for GPU models: %v", err)
+		return nil
+	}
+	if len(sub.Steps) == 0 {
+		return nil
+	}
+	models := sub.Steps[0].Component.Container.GPUModels
+	if len(models) == 0 {
+		return nil
+	}
+	return models
+}
+
 type CPUHours struct {
 	db            *db.Database
 	subscriptions *clients.Subscriptions
@@ -29,9 +71,21 @@ type CPUHours struct {
 
 type CalculationResult struct {
 	CPUHours  *apd.Decimal
+	GPUHours  *apd.Decimal // nil when the job did not request GPUs
+	GPUModels []string     // requested GPU model names from the submission; may be nil
 	Analysis  *db.Analysis
 	BasisTime time.Time
 	CalcTime  time.Time
+}
+
+// cpuMetadata is the subset of CalculationResult serialized into the
+// qms.Update.Metadata field for CPU usage events. GPU-derived fields are
+// intentionally excluded — they belong only in the GPU update's metadata.
+type cpuMetadata struct {
+	CPUHours  *apd.Decimal `json:"CPUHours"`
+	Analysis  *db.Analysis `json:"Analysis"`
+	BasisTime time.Time    `json:"BasisTime"`
+	CalcTime  time.Time    `json:"CalcTime"`
 }
 
 func New(db *db.Database, subscriptions *clients.Subscriptions) *CPUHours {
@@ -42,6 +96,7 @@ func New(db *db.Database, subscriptions *clients.Subscriptions) *CPUHours {
 }
 
 // CPUHoursForAnalysis returns the CPU hours total for the analysis as a decimal value.
+// When the analysis reserved GPUs, GPU hours are also computed using the same time window.
 func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID string) (CalculationResult, error) {
 	var (
 		basisTime time.Time
@@ -58,6 +113,13 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 		return res, err
 	}
 	msgLog.Debug("done getting millicores reserved")
+
+	msgLog.Debug("getting GPUs reserved")
+	gpusReserved, err := c.db.GPUsReserved(context, analysisID)
+	if err != nil {
+		return res, err
+	}
+	msgLog.Debugf("done getting GPUs reserved: %d", gpusReserved)
 
 	for i := 0; i < 5; i++ { // Try five times, then use time.Now().UTC() instead
 		msgLog.Debug("getting analysis info and locking row")
@@ -131,6 +193,19 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 
 	msgLog.Infof("run time is %s hours; millicores reserved is %s; cpu hours is %s", timeSpent.String(), mcReserved.String(), cpuHours.String())
 
+	// Compute GPU hours when the job reserved GPUs.
+	// GPU hours = gpus_reserved × elapsed_hours (no /1000 — GPUs are whole units).
+	if gpusReserved > 0 {
+		gpuCount := apd.New(0, 0).SetInt64(gpusReserved)
+		gpuHours := apd.New(0, 0)
+		if _, err = bc.Mul(gpuHours, gpuCount, timeSpent); err != nil {
+			return res, err
+		}
+		res.GPUHours = gpuHours
+		res.GPUModels = extractGPUModels(analysis.Submission)
+		msgLog.Infof("gpus reserved is %d; gpu hours is %s", gpusReserved, gpuHours.String())
+	}
+
 	err = c.db.SetUsageLastUpdate(context, analysisID, calcTime)
 	if err != nil {
 		return res, err
@@ -144,48 +219,91 @@ func (c *CPUHours) CPUHoursForAnalysis(context context.Context, analysisID strin
 func (c *CPUHours) addEvent(context context.Context, res CalculationResult) error {
 	var err error
 	analysis := res.Analysis
-	cpuHours := res.CPUHours
-
-	floatValue, err := cpuHours.Float64()
-	if err != nil {
-		return err
-	}
 
 	username, err := c.db.Username(context, analysis.UserID)
 	if err != nil {
 		return err
 	}
 
-	metajson, err := json.Marshal(res)
+	msgLog := log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
+
+	// Build all updates into a single batch. The subscriptions service
+	// applies them atomically in one transaction, so a partial failure
+	// (e.g. CPU succeeds but GPU fails) is impossible — either all
+	// updates are recorded or none are.
+	var updates []*qms.Update
+
+	// CPU hours update (always present).
+	cpuFloat, err := res.CPUHours.Float64()
 	if err != nil {
 		return err
 	}
 
-	update := &qms.Update{
+	cpuMeta := cpuMetadata{
+		CPUHours:  res.CPUHours,
+		Analysis:  res.Analysis,
+		BasisTime: res.BasisTime,
+		CalcTime:  res.CalcTime,
+	}
+	metajson, err := json.Marshal(cpuMeta)
+	if err != nil {
+		return err
+	}
+
+	updates = append(updates, &qms.Update{
 		ValueType:     "usages",
-		Value:         floatValue,
+		Value:         cpuFloat,
 		EffectiveDate: ptypes.Now(),
 		Operation: &qms.UpdateOperation{
 			Name: "ADD",
 		},
 		ResourceType: &qms.ResourceType{
-			Name: "cpu.hours",
+			Name: qms.ResourceTypeCPUHours,
 			Unit: "cpu hours",
 		},
 		User: &qms.QMSUser{
 			Username: username,
 		},
 		Metadata: string(metajson),
+	})
+
+	// GPU hours update (only when the job reserved GPUs).
+	if res.GPUHours != nil {
+		gpuFloat, err := res.GPUHours.Float64()
+		if err != nil {
+			return err
+		}
+
+		gpuMeta := gpuMetadata{GPUModels: res.GPUModels}
+		gpuMetaJSON, err := json.Marshal(gpuMeta)
+		if err != nil {
+			return err
+		}
+
+		updates = append(updates, &qms.Update{
+			ValueType:     "usages",
+			Value:         gpuFloat,
+			EffectiveDate: ptypes.Now(),
+			Operation: &qms.UpdateOperation{
+				Name: "ADD",
+			},
+			ResourceType: &qms.ResourceType{
+				Name: qms.ResourceTypeGPUHours,
+				Unit: "gpu hours",
+			},
+			User: &qms.QMSUser{
+				Username: username,
+			},
+			Metadata: string(gpuMetaJSON),
+		})
 	}
 
-	msgLog := log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
-
-	msgLog.Debugf("adding cpu usage event of %f for %s", floatValue, username)
-	if err = c.subscriptions.AddUserUpdate(context, username, update); err != nil {
-		msgLog.WithError(err).Error("Failed to add CPU usage event")
+	msgLog.Debugf("sending batch of %d usage updates for %s", len(updates), username)
+	if err = c.subscriptions.AddUserUpdates(context, username, updates); err != nil {
+		msgLog.WithError(err).Error("Failed to add usage events")
 		return err
 	}
-	msgLog.Debug("after add cpu usage event")
+	msgLog.Debug("after add usage events")
 
 	return nil
 }

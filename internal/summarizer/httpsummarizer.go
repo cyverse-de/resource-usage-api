@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/apd"
+	"github.com/cyverse-de/p/go/qms"
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/db"
 )
@@ -74,7 +75,7 @@ func (h *HTTPSummarizer) LoadSummary() *UserSummary {
 		}
 		summary.Subscription.Usages = append(summary.Subscription.Usages, u)
 
-		if u.ResourceType.Name == "cpu.hours" {
+		if u.ResourceType.Name == qms.ResourceTypeCPUHours {
 			ct, err := apd.New(0, 0).SetFloat64(rUsage.Usage)
 			if err != nil {
 				log.Error(err)
@@ -91,7 +92,24 @@ func (h *HTTPSummarizer) LoadSummary() *UserSummary {
 			}
 		}
 
-		if u.ResourceType.Name == "data.size" {
+		if u.ResourceType.Name == qms.ResourceTypeGPUHours {
+			gt, err := apd.New(0, 0).SetFloat64(rUsage.Usage)
+			if err != nil {
+				log.Error(err)
+				return nil
+			}
+			summary.GPUUsage = &db.GPUHours{
+				ID:             rUsage.Uuid,
+				UserID:         response.Subscription.User.Uuid,
+				Username:       response.Subscription.User.Username,
+				Total:          *gt,
+				EffectiveStart: response.Subscription.EffectiveStartDate.AsTime(),
+				EffectiveEnd:   response.Subscription.EffectiveEndDate.AsTime(),
+				LastModified:   *u.LastModifiedAt,
+			}
+		}
+
+		if u.ResourceType.Name == qms.ResourceTypeDataSize {
 			dt, err := apd.New(0, 0).SetFloat64(u.Usage)
 			if err != nil {
 				log.Error(err)
@@ -145,6 +163,15 @@ func (h *HTTPSummarizer) LoadSummary() *UserSummary {
 
 	if summary.CPUUsage == nil {
 		summary.CPUUsage = &db.CPUHours{
+			EffectiveStart: response.Subscription.EffectiveStartDate.AsTime(),
+			EffectiveEnd:   response.Subscription.EffectiveEndDate.AsTime(),
+			UserID:         response.Subscription.User.Uuid,
+			Username:       response.Subscription.User.Username,
+		}
+	}
+
+	if summary.GPUUsage == nil {
+		summary.GPUUsage = &db.GPUHours{
 			EffectiveStart: response.Subscription.EffectiveStartDate.AsTime(),
 			EffectiveEnd:   response.Subscription.EffectiveEndDate.AsTime(),
 			UserID:         response.Subscription.User.Uuid,
