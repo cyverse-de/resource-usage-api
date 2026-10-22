@@ -85,6 +85,11 @@ func (d *DefaultSummarizer) LoadSummary() *UserSummary {
 	// Load the CPU usage information.
 	d.loadCPUUsage(&summary)
 
+	// GPU usage is only available via the subscriptions service (HTTPSummarizer).
+	// The default summarizer returns a zero-value placeholder so the field is
+	// never null in the JSON response.
+	summary.GPUUsage = &db.GPUHours{}
+
 	// Load the data usage information.
 	d.loadDataUsage(&summary)
 

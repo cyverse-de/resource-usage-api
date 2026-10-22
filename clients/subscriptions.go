@@ -113,6 +113,24 @@ func (c *Subscriptions) AddUserUpdate(ctx context.Context, username string, upda
 	return serviceError(response.Error)
 }
 
+// AddUserUpdates records multiple usage or quota updates for a user atomically.
+// All updates succeed or fail together in a single server-side transaction.
+func (c *Subscriptions) AddUserUpdates(ctx context.Context, username string, updates []*qms.Update) error {
+	user := c.config.FixUsername(username)
+
+	body, err := json.Marshal(&qms.AddUpdatesRequest{Updates: updates})
+	if err != nil {
+		return errors.Wrap(err, "unable to marshal the user updates batch")
+	}
+
+	var response qms.AddUpdatesResponse
+	if err = c.do(ctx, http.MethodPut, joinPath(c.baseURL, "user", user, "updates", "batch"), bytes.NewReader(body), &response); err != nil {
+		return err
+	}
+
+	return serviceError(response.Error)
+}
+
 // UserCurrentDataUsage returns the user's current data.size usage as recorded in QMS. It returns a
 // NoUsageRecordedError when QMS has no data.size usage for the user; callers use that to trigger an
 // asynchronous refresh.

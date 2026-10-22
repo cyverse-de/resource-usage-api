@@ -34,6 +34,17 @@ type CPUHours struct {
 	LastModified   time.Time   `db:"last_modified" json:"last_modified"`
 }
 
+// GPUHours mirrors CPUHours for GPU usage tracking.
+type GPUHours struct {
+	ID             string      `db:"id" json:"id"`
+	UserID         string      `db:"user_id" json:"user_id"`
+	Username       string      `db:"username" json:"username"`
+	Total          apd.Decimal `db:"total" json:"total"`
+	EffectiveStart time.Time   `db:"effective_start" json:"effective_start"`
+	EffectiveEnd   time.Time   `db:"effective_end" json:"effective_end"`
+	LastModified   time.Time   `db:"last_modified" json:"last_modified"`
+}
+
 // Queryer is the query surface shared by a connection pool and a transaction. Code that must run
 // inside a transaction takes this rather than DatabaseAccessor, so that a pool cannot be passed by
 // mistake.
@@ -164,4 +175,17 @@ func (d *Database) MillicoresReserved(context context.Context, analysisID string
 	var millicores int64
 	err := d.Q().QueryRowxContext(context, q, analysisID).Scan(&millicores)
 	return millicores, err
+}
+
+// GPUsReserved returns the number of GPUs reserved for the given analysis.
+// Returns 0 for analyses submitted before the gpus_reserved column existed.
+func (d *Database) GPUsReserved(context context.Context, analysisID string) (int64, error) {
+	const q = `
+		SELECT gpus_reserved
+		FROM jobs
+		WHERE id = $1;
+	`
+	var gpus int64
+	err := d.Q().QueryRowxContext(context, q, analysisID).Scan(&gpus)
+	return gpus, err
 }

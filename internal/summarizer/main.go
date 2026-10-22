@@ -33,6 +33,7 @@ func safeMessage(err error, fallback string) string {
 // usages and their current plan.
 type UserSummary struct {
 	CPUUsage     *db.CPUHours           `json:"cpu_usage"`
+	GPUUsage     *db.GPUHours           `json:"gpu_usage"`
 	DataUsage    *clients.UserDataUsage `json:"data_usage"`
 	Subscription *clients.Subscription  `json:"subscription"`
 	Errors       []APIError             `json:"errors"`
