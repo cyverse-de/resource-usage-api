@@ -227,10 +227,8 @@ func (c *CPUHours) addEvent(context context.Context, res CalculationResult) erro
 
 	msgLog := log.WithFields(logrus.Fields{"context": "adding event", "analysisID": analysis.ID})
 
-	// Build all updates into a single batch. The subscriptions service
-	// applies them atomically in one transaction, so a partial failure
-	// (e.g. CPU succeeds but GPU fails) is impossible — either all
-	// updates are recorded or none are.
+	// Build all updates into a single batch for the subscriptions service
+	// to apply atomically.
 	var updates []*qms.Update
 
 	// CPU hours update (always present).
