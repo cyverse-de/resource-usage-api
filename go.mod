@@ -6,7 +6,8 @@ require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/cockroachdb/apd v1.1.0
 	github.com/cyverse-de/go-mod/cfg v0.0.3
-	github.com/cyverse-de/messaging/v9 v9.1.5
+	github.com/cyverse-de/messaging/v12 v12.0.2
+	github.com/cyverse-de/model/v10 v10.0.2
 	github.com/cyverse-de/p/go/ptypes v0.1.0
 	github.com/cyverse-de/p/go/qms v0.3.2
 	github.com/cyverse-de/p/go/svcerror v0.1.0
@@ -16,15 +17,14 @@ require (
 	github.com/labstack/echo/v4 v4.16.5
 	github.com/lib/pq v1.12.3
 	github.com/pkg/errors v0.9.1
+	github.com/rabbitmq/amqp091-go v1.11.0
 	github.com/samber/lo v1.53.0
 	github.com/sirupsen/logrus v1.10.2
-	github.com/streadway/amqp v1.1.0
 )
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cyverse-de/configurate v0.0.0-20210914212501-fc18b48e00a9 // indirect
-	github.com/cyverse-de/model/v6 v6.0.1 // indirect
+	github.com/cyverse-de/configurate v0.0.0-20260305004742-e3d1c1150f1e // indirect
 	github.com/cyverse-de/p/go/header v0.1.0 // indirect
 	github.com/fsnotify/fsnotify v1.10.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect

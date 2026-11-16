@@ -13,7 +13,7 @@ import (
 
 	"context"
 
-	"github.com/cyverse-de/messaging/v9"
+	"github.com/cyverse-de/messaging/v12"
 	"github.com/cyverse-de/resource-usage-api/amqp"
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/config"

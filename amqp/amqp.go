@@ -5,14 +5,14 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/cyverse-de/messaging/v9"
+	"github.com/cyverse-de/messaging/v12"
 	"github.com/cyverse-de/resource-usage-api/clients"
 	"github.com/cyverse-de/resource-usage-api/config"
 	"github.com/cyverse-de/resource-usage-api/logging"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
-	"github.com/streadway/amqp"
 )
 
 var log = logging.Log.WithFields(logrus.Fields{"package": "amqp"})
@@ -93,7 +93,13 @@ func New(cfg *Configuration, handler HandlerFn, deps *Dependencies) (*AMQP, erro
 		return nil, err
 	}
 
-	go a.client.Listen()
+	// Before messaging v12, Listen exited the process itself when a non-reconnecting client lost its
+	// connection. It now returns an error instead, so exit here to keep that behavior.
+	go func() {
+		if err := a.client.ListenWithError(); err != nil {
+			log.Fatal(err)
+		}
+	}()
 
 	log.Debug("adding the analysis updates consumer")
 	client.AddConsumer(
