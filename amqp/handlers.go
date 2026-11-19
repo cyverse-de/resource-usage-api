@@ -10,7 +10,7 @@ import (
 
 	"github.com/cyverse-de/resource-usage-api/db"
 	"github.com/pkg/errors"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // Routing key prefixes for data usage refresh requests.

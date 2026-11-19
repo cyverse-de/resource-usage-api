@@ -8,7 +8,7 @@ import (
 
 	"github.com/cyverse-de/resource-usage-api/config"
 	"github.com/cyverse-de/resource-usage-api/db"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 // The publisher interface is declared in db so that package does not depend on this one; the two have
